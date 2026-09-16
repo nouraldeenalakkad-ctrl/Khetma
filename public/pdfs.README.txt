@@ -1,0 +1,2 @@
+The juz PDF assets are served from /juz1.pdf through /juz30.pdf.
+Replace these files with the approved Quran PDF assets before public deployment.
