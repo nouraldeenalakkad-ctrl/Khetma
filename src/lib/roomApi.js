@@ -62,13 +62,27 @@ export async function createRoom(name, participantName, password) {
 }
 
 export async function joinRoom(roomId, participantName, password) {
-  const result = unwrap(await requireSupabase().rpc('join_room', {
-    target_room_id: roomId,
+  const client = requireSupabase()
+
+  // المستخدم قد يدخل اسم الختمة بدل UUID
+  const roomResult = await client
+    .from('rooms')
+    .select('id')
+    .eq('name', roomId.trim())
+    .single()
+
+  const room = unwrap(roomResult)
+
+  const result = unwrap(await client.rpc('join_room', {
+    target_room_id: room.id,
     participant_name: participantName,
     room_password: password,
   }))
+
   const session = { ...result, name: participantName }
-  saveSession(roomId, session)
+
+  saveSession(room.id, session)
+
   return session
 }
 
