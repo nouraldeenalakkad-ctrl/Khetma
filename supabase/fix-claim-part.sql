@@ -31,6 +31,25 @@ begin
     raise exception 'invalid_session';
   end if;
 
+  if exists (
+    select 1 from public.participants
+    where id = target_participant_id and current_part is not null
+  ) then
+    raise exception 'part_is_not_available';
+  end if;
+
+  update public.parts
+  set status = 'available'
+  where room_id = target_room_id
+    and part_number = requested_part
+    and status = 'locked'
+    and not exists (
+      select 1 from public.parts
+      where room_id = target_room_id
+        and part_number < requested_part
+        and status = 'locked'
+    );
+
   select * into selected_part
   from public.parts
   where room_id = target_room_id

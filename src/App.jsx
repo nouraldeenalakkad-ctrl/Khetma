@@ -34,8 +34,23 @@ pdfjs.GlobalWorkerOptions.workerSrc =
 const quranPdfPath = (partNumber) =>
   `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf`
 
-const getNextAvailablePart = (parts) =>
-  parts.find((part) => part.status === 'available')?.number || null
+const getNextAvailablePart = (parts) => {
+  const nextAvailable = parts.find(
+    (part) => part.status === 'available',
+  )
+
+  if (nextAvailable) return nextAvailable.number
+
+  const firstClaimableLocked = parts.find(
+    (part, index) =>
+      part.status === 'locked' &&
+      parts
+        .slice(0, index)
+        .every((previousPart) => previousPart.status !== 'locked'),
+  )
+
+  return firstClaimableLocked?.number || null
+}
 
 function HomePage() {
   return (
@@ -654,8 +669,9 @@ function RoomPage({
           <div className="parts-grid">
             {room.parts.map((part) => {
               const isAvailable =
-                part.status === 'available' &&
-                part.number === nextAvailable
+                part.number === nextAvailable &&
+                (part.status === 'available' ||
+                  part.status === 'locked')
 
               const isReading =
                 part.status === 'reading'
@@ -676,11 +692,10 @@ function RoomPage({
                       : 'locked'
 
               const disabled =
-                isLocked ||
-                (
-                  part.status === 'available' &&
-                  part.number !== nextAvailable
-                )
+                (part.status === 'locked' &&
+                  part.number !== nextAvailable) ||
+                (part.status === 'available' &&
+                  part.number !== nextAvailable)
 
               return (
                 <button
@@ -905,7 +920,11 @@ function PartPage({
           return
         }
 
-        if (targetPart?.status === 'available' && targetPart.number === nextPart) {
+        if (
+          (targetPart?.status === 'available' ||
+            targetPart?.status === 'locked') &&
+          targetPart.number === nextPart
+        ) {
           try {
             await claimPart(roomId, numericPartNumber)
             const claimedRoom = await getRoomState(roomId)

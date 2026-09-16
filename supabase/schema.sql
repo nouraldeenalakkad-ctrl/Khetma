@@ -130,6 +130,18 @@ returns json language plpgsql security definer set search_path = public as $$
 declare selected_part parts%rowtype;
 begin
   if not exists (select 1 from participants where id = target_participant_id and room_id = target_room_id and session_token_hash = public.khatmah_hash(session_token)) then raise exception 'invalid_session'; end if;
+  if exists (select 1 from participants where id = target_participant_id and current_part is not null) then raise exception 'part_is_not_available'; end if;
+  update parts
+  set status = 'available'
+  where room_id = target_room_id
+    and part_number = requested_part
+    and status = 'locked'
+    and not exists (
+      select 1 from parts
+      where room_id = target_room_id
+        and part_number < requested_part
+        and status = 'locked'
+    );
   select * into selected_part from parts where room_id = target_room_id and part_number = requested_part for update;
   if selected_part.status <> 'available' then raise exception 'part_is_not_available'; end if;
   update parts set status = 'reading', participant_id = target_participant_id, started_at = now() where id = selected_part.id;
