@@ -73,6 +73,27 @@ export async function joinRoom(roomId, participantName, password) {
 
   const room = unwrap(roomResult)
 
+  export async function joinRoom(roomId, participantName, password) {
+  const client = requireSupabase()
+
+  const roomResult = await client
+    .from('rooms')
+    .select('id,name')
+    .eq('name', roomId.trim())
+    .limit(2)
+
+  const rooms = unwrap(roomResult)
+
+  if (!rooms || rooms.length === 0) {
+    throw new Error('لم يتم العثور على ختمة بهذا الاسم.')
+  }
+
+  if (rooms.length > 1) {
+    throw new Error('يوجد أكثر من ختمة بهذا الاسم. اختر اسمًا مختلفًا.')
+  }
+
+  const room = rooms[0]
+
   const result = unwrap(await client.rpc('join_room', {
     target_room_id: room.id,
     participant_name: participantName,
