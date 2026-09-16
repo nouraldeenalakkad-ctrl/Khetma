@@ -37,14 +37,7 @@ begin
     and part_number = requested_part
   for update;
 
-  if not found
-     or selected_part.status <> 'available'
-     or exists (
-       select 1 from public.parts
-       where room_id = target_room_id
-         and part_number < requested_part
-         and status <> 'completed'
-     ) then
+  if not found or selected_part.status <> 'available' then
     raise exception 'part_is_not_available';
   end if;
 
@@ -55,6 +48,12 @@ begin
   update public.participants
   set current_part = requested_part
   where id = target_participant_id;
+
+  update public.parts
+  set status = 'available'
+  where room_id = target_room_id
+    and part_number = requested_part + 1
+    and status = 'locked';
 
   return json_build_object('ok', true);
 end;

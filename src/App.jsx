@@ -34,17 +34,8 @@ pdfjs.GlobalWorkerOptions.workerSrc =
 const quranPdfPath = (partNumber) =>
   `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf`
 
-const getNextAvailablePart = (parts) => {
-  const lastCompleted = parts.reduce(
-    (max, part) =>
-      part.status === 'completed'
-        ? Math.max(max, part.number)
-        : max,
-    0,
-  )
-
-  return lastCompleted + 1
-}
+const getNextAvailablePart = (parts) =>
+  parts.find((part) => part.status === 'available')?.number || null
 
 function HomePage() {
   return (
@@ -83,7 +74,7 @@ function HomePage() {
             to="/join"
             className="secondary-button"
           >
-            الانضمام لختمة
+            الانضمام للختمة الحالية
           </Link>
         </div>
 
@@ -266,7 +257,7 @@ function JoinRoomPage({
           ← الرئيسية
         </Link>
 
-        <h1>الانضمام لختمة</h1>
+        <h1>الانضمام للختمة الحالية</h1>
 
         <p className="muted-text">
           أدخل رابط الختمة أو معرفها، ثم اسمك وكلمة المرور.
@@ -648,14 +639,16 @@ function RoomPage({
             <div>
               <h2>أجزاء القرآن</h2>
               <p>
-                ابدأ من الجزء المتاح، وبعد إكماله
-                يصبح الجزء التالي متاحًا.
+                ابدأ من الجزء المتاح، ويصبح الجزء التالي
+                متاحًا فور حجزه.
               </p>
             </div>
 
-            <span className="next-part">
-              الجزء التالي: {nextAvailable}
-            </span>
+            {nextAvailable && (
+              <span className="next-part">
+                الجزء التالي: {nextAvailable}
+              </span>
+            )}
           </div>
 
           <div className="parts-grid">
@@ -710,9 +703,14 @@ function RoomPage({
                   </span>
 
                   {isCompleted && (
-                    <span className="part-status">
-                      ✓ مكتمل
-                    </span>
+                    <>
+                      <span className="part-status">
+                        ✓ مكتمل
+                      </span>
+                      <span className="part-status">
+                        قرأه: {part.reader || 'مشارك'}
+                      </span>
+                    </>
                   )}
 
                   {isReading && (
