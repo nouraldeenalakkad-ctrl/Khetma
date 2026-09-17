@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BrowserRouter,
   Link,
@@ -159,7 +159,7 @@ function CreateRoomPage() {
         <h1>إنشاء ختمة</h1>
 
         <p className="muted-text">
-          أنشئ غرفة وشارك الرابط مع من تريد أن يشاركك الختمة.
+          أنشئ جلسة وشارك الرابط مع من تريد أن يشاركك الختمة.
         </p>
 
         <form onSubmit={onSubmit} className="form-stack">
@@ -881,17 +881,16 @@ function PartPage({
   const [isReaderOpen, setIsReaderOpen] =
     useState(false)
 
+  const [isPdfOpen, setIsPdfOpen] =
+    useState(false)
+
+  const pdfOpenRef = useRef(false)
+
   const [showDua, setShowDua] =
     useState(false)
 
   const [pdfPages, setPdfPages] =
     useState(0)
-
-  const [pdfPage, setPdfPage] =
-    useState(1)
-
-  const [pdfScale, setPdfScale] =
-    useState(0.8)
 
   const [room, setRoom] =
     useState(null)
@@ -904,6 +903,10 @@ function PartPage({
 
   const numericPartNumber =
     Number(partNumber)
+
+  useEffect(() => {
+    pdfOpenRef.current = isPdfOpen
+  }, [isPdfOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -933,7 +936,7 @@ function PartPage({
             const claimedRoom = await getRoomState(roomId)
             if (!cancelled) {
               setRoom(claimedRoom)
-              setIsReaderOpen(false)
+              setIsReaderOpen(true)
             }
             return
           } catch (reason) {
@@ -962,15 +965,23 @@ function PartPage({
   useEffect(() => {
     if (!isReaderOpen) return undefined
 
-    window.history.pushState({ readerModal: true }, '', window.location.href)
+    window.history.pushState(
+      { readerModal: true, pdfOpen: false },
+      '',
+      window.location.href,
+    )
 
-    const keepReaderOpen = () => {
-      setIsReaderOpen(true)
-      window.history.pushState({ readerModal: true }, '', window.location.href)
+    const handleBack = () => {
+      if (pdfOpenRef.current) {
+        setIsPdfOpen(false)
+        return
+      }
+
+      setIsReaderOpen(false)
     }
 
-    window.addEventListener('popstate', keepReaderOpen)
-    return () => window.removeEventListener('popstate', keepReaderOpen)
+    window.addEventListener('popstate', handleBack)
+    return () => window.removeEventListener('popstate', handleBack)
   }, [isReaderOpen])
 
   useEffect(() => {
@@ -1083,33 +1094,15 @@ function PartPage({
   const onDocumentLoadSuccess =
     ({ numPages }) => {
       setPdfPages(numPages)
-      setPdfPage(1)
-    }
-
-  const previousPage = () => {
-    setPdfPage(
-      (page) =>
-        Math.max(1, page - 1),
-    )
-  }
-
-  const nextPage = () => {
-    setPdfPage(
-      (page) =>
-        Math.min(
-          pdfPages || page,
-          page + 1,
-        ),
-    )
   }
 
   const canFinish = Boolean(
-    isMyPart && pdfPages > 0 && pdfPage >= pdfPages,
+    isMyPart && pdfPages > 0,
   )
 
   /*
    * مهم:
-   * لا نرجع للرئيسية أثناء تحميل الغرفة.
+  * لا نرجع للرئيسية أثناء تحميل الجلسة.
    */
   if (!room) {
     return (
@@ -1146,7 +1139,7 @@ function PartPage({
             to={`/room/${roomId}`}
             className="back-link"
           >
-            العودة إلى الغرفة
+            العودة إلى الجلسة
           </Link>
         </div>
       </div>
@@ -1229,120 +1222,64 @@ function PartPage({
                 {formatTime(seconds)}
               </div>
 
-              {isMyPart && (
+              {isMyPart && !isPdfOpen && (
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={() => setIsRunning((value) => !value)}
+                  onClick={() => {
+                    setIsPdfOpen(true)
+                    setIsRunning(true)
+                  }}
                 >
-                  {isRunning ? 'إيقاف المؤقت' : 'بدء القراءة'}
+                  فتح ملف الجزء وبدء القراءة
+                </button>
+              )}
+
+              {isPdfOpen && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setIsPdfOpen(false)}
+                >
+                  العودة لنافذة الجزء
                 </button>
               )}
             </div>
 
             <main className="reader-content">
-        <section className="reader-pdf-card">
-          <div className="reader-toolbar">
-            <button
-              type="button"
-              onClick={
-                previousPage
-              }
-              disabled={
-                pdfPage <= 1
-              }
-            >
-              الصفحة السابقة
-            </button>
+        {isPdfOpen && (
+          <section className="reader-pdf-card reader-file-card">
+            <div className="pdf-viewer">
+              <Document
+                file={quranPdfPath(part.number)}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={
+                  <div className="loading-state">
+                    جاري تحميل الجزء كاملًا...
+                  </div>
+                }
+                error={
+                  <div className="error-box">
+                    تعذر تحميل ملف الجزء.
+                  </div>
+                }
+              >
+                {Array.from({ length: pdfPages }, (_, index) => (
+                  <Page
+                    key={index + 1}
+                    pageNumber={index + 1}
+                    scale={0.8}
+                    renderTextLayer
+                    renderAnnotationLayer
+                  />
+                ))}
+              </Document>
+            </div>
+          </section>
+        )}
 
-            <span>
-              صفحة {pdfPage}
-              {pdfPages
-                ? ` من ${pdfPages}`
-                : ''}
-            </span>
-
-            <button
-              type="button"
-              onClick={nextPage}
-              disabled={
-                !pdfPages ||
-                pdfPage >= pdfPages
-              }
-            >
-              الصفحة التالية
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setPdfScale(
-                  (value) =>
-                    Math.min(
-                      1.5,
-                      value + 0.1,
-                    ),
-                )
-              }
-            >
-              +
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setPdfScale(
-                  (value) =>
-                    Math.max(
-                      0.5,
-                      value - 0.1,
-                    ),
-                )
-              }
-            >
-              −
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setPdfScale(0.8)
-              }
-            >
-              ملاءمة
-            </button>
-          </div>
-
-          <div className="pdf-viewer">
-            <Document
-              file={quranPdfPath(
-                part.number,
-              )}
-              onLoadSuccess={
-                onDocumentLoadSuccess
-              }
-              loading={
-                <div className="loading-state">
-                  جاري تحميل القرآن...
-                </div>
-              }
-              error={
-                <div className="error-box">
-                  تعذر تحميل ملف القرآن.
-                </div>
-              }
-            >
-              <Page
-                pageNumber={pdfPage}
-                scale={pdfScale}
-                renderTextLayer
-                renderAnnotationLayer
-              />
-            </Document>
-          </div>
-        </section>
-
-        <aside className="reader-side-panel">
+        {!isPdfOpen && (
+          <aside className="reader-side-panel">
           <div className="card-box">
             <h2>
               الجزء {part.number}
@@ -1391,6 +1328,17 @@ function PartPage({
                   <>
                     <button
                       type="button"
+                      className="primary-button"
+                      onClick={() => {
+                        setIsPdfOpen(true)
+                        setIsRunning(true)
+                      }}
+                    >
+                      فتح ملف الجزء
+                    </button>
+
+                    <button
+                      type="button"
                       className="secondary-button"
                       onClick={
                         resetTimer
@@ -1409,7 +1357,7 @@ function PartPage({
                     onClick={onFinish}
                     disabled={!canFinish || finishing}
                   >
-                    {finishing ? 'جاري إنهاء الجزء...' : 'تم إنهاء الجزء'}
+                    {finishing ? 'جاري إنهاء الجزء...' : 'تم قراءة الجزء'}
                   </button>
                 )}
               </div>
@@ -1429,7 +1377,8 @@ function PartPage({
               </p>
             </div>
           </div>
-        </aside>
+          </aside>
+        )}
             </main>
 
             <button

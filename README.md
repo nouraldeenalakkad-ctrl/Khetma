@@ -1,6 +1,6 @@
 # خَتْمَة
 
-تطبيق غرفة ختم قرآن عربية RTL مبني بـ React وVite. الواجهة ومسار الغرفة وقارئ PDF جاهزون، لكن الوصول المشترك بين الأجهزة يحتاج إعداد Supabase قبل النشر.
+تطبيق جلسة ختم قرآن عربية RTL مبني بـ React وVite. الواجهة ومسار الجلسة وقارئ PDF جاهزون، لكن الوصول المشترك بين الأجهزة يحتاج إعداد Supabase قبل النشر.
 
 ## التشغيل
 
@@ -26,7 +26,7 @@ npm run dev
 - Output directory: `dist`
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 
-النسخة الحالية تعمل محليًا بدون Supabase كواجهة قابلة للتجربة، ولا تدّعي أن الغرف المحلية مشتركة بين الأجهزة حتى تُضاف مفاتيح Supabase ويُربط مسار الواجهة بدوال قاعدة البيانات.
+النسخة الحالية تعمل محليًا بدون Supabase كواجهة قابلة للتجربة، ولا تدّعي أن الجلسات المحلية مشتركة بين الأجهزة حتى تُضاف مفاتيح Supabase ويُربط مسار الواجهة بدوال قاعدة البيانات.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

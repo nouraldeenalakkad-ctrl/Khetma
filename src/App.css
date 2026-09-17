@@ -287,7 +287,7 @@ a {
 }
 
 /* =========================
-   الغرفة
+  الجلسة
 ========================= */
 
 .room-shell {
@@ -1113,6 +1113,21 @@ a {
 
 .reader-modal .reader-content {
   grid-template-columns: minmax(0, 1fr) 280px;
+}
+
+.reader-file-card {
+  grid-column: 1 / -1;
+}
+
+.reader-file-card .pdf-viewer {
+  align-items: start;
+}
+
+.reader-file-card .pdf-viewer > div {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: 100%;
 }
 
 .reader-modal-close {
