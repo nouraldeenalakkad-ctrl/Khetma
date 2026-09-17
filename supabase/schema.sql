@@ -66,9 +66,7 @@ create table if not exists public.messages (
 alter table public.parts drop constraint if exists parts_status_check;
 alter table public.parts add constraint parts_status_check check (status in ('available', 'reading', 'completed', 'locked'));
 
-create unique index if not exists rooms_active_name_unique
-  on public.rooms (lower(trim(name)))
-  where status = 'active';
+-- Duplicate names from older data are handled by the locked create_room check below.
 
 alter table public.rooms enable row level security;
 alter table public.participants enable row level security;
@@ -89,12 +87,19 @@ returns json language plpgsql security definer set search_path = public as $$
 declare
   new_room_id uuid := gen_random_uuid();
   new_participant_id uuid := gen_random_uuid();
-  owner_token text := encode(extensions.gen_random_bytes(32), 'hex');
+  owner_token text := encode(
+    extensions.digest(
+      convert_to(trim(room_password) || ':' || new_room_id::text || ':' || lower(trim(participant_name)), 'UTF8'),
+      'sha256'::text
+    ),
+    'hex'
+  );
 begin
   if char_length(trim(room_name)) = 0 or char_length(trim(participant_name)) = 0 or char_length(room_password) < 4 then
     raise exception 'invalid_room_data';
   end if;
-  if exists (select 1 from rooms where lower(trim(name)) = lower(trim(room_name)) and status = 'active') then
+  perform pg_advisory_xact_lock(hashtextextended(lower(trim(room_name)), 0));
+  if exists (select 1 from rooms where lower(trim(name)) = lower(trim(room_name))) then
     raise exception 'room_already_exists';
   end if;
   insert into rooms (id, name, password_hash, owner_token_hash, creator_name)
@@ -114,14 +119,24 @@ declare
   room_record rooms%rowtype;
   new_participant_id uuid := gen_random_uuid();
   session_token text := encode(extensions.gen_random_bytes(32), 'hex');
+  owner_token text;
 begin
-  select * into room_record from rooms where id = target_room_id and status = 'active';
+  select * into room_record from rooms where id = target_room_id;
   if not found or room_record.password_hash <> encode(extensions.digest(room_password, 'sha256'), 'hex') then raise exception 'invalid_room_credentials'; end if;
+  if lower(trim(participant_name)) = lower(trim(room_record.creator_name)) then
+    owner_token := encode(
+      extensions.digest(
+        convert_to(trim(room_password) || ':' || target_room_id::text || ':' || lower(trim(participant_name)), 'UTF8'),
+        'sha256'::text
+      ),
+      'hex'
+    );
+  end if;
   insert into participants (id, room_id, name, session_token_hash)
   values (new_participant_id, target_room_id, trim(participant_name), encode(extensions.digest(session_token, 'sha256'), 'hex'))
   on conflict (room_id, name) do update set session_token_hash = excluded.session_token_hash
   returning id into new_participant_id;
-  return json_build_object('room_id', target_room_id, 'participant_id', new_participant_id, 'session_token', session_token, 'owner_token', null);
+  return json_build_object('room_id', target_room_id, 'participant_id', new_participant_id, 'session_token', session_token, 'owner_token', owner_token);
 end;
 $$;
 

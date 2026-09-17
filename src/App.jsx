@@ -286,7 +286,7 @@ function JoinRoomPage({
               onChange={(event) =>
                 setRoomId(event.target.value)
               }
-              placeholder="معرف الختمة"
+              placeholder="اسم الجلسة أو رابطها"
             />
           </label>
 
@@ -366,7 +366,6 @@ function RoomPage({
   const [chatOpen, setChatOpen] = useState(true)
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
 
   const session = getSession(roomId)
   const isCreator = Boolean(
@@ -415,31 +414,6 @@ function RoomPage({
   const nextAvailable = room
     ? getNextAvailablePart(room.parts)
     : 1
-
-  const copyRoomLink = async () => {
-    const roomLink = `${window.location.origin}/room/${roomId}`
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(roomLink)
-      } else {
-        const helper = document.createElement('textarea')
-        helper.value = roomLink
-        helper.setAttribute('readonly', '')
-        helper.style.position = 'fixed'
-        helper.style.opacity = '0'
-        document.body.appendChild(helper)
-        helper.select()
-        document.execCommand('copy')
-        helper.remove()
-      }
-      setLinkCopied(true)
-      setError('')
-      window.setTimeout(() => setLinkCopied(false), 3500)
-    } catch (reason) {
-      setError(reason?.message || 'تعذر نسخ الرابط. انسخه يدويًا من شريط العنوان.')
-    }
-  }
 
   const onLeave = async () => {
     if (!session) return
@@ -569,14 +543,6 @@ function RoomPage({
         </div>
 
         <div className="room-actions">
-          <button
-            type="button"
-            className={linkCopied ? 'copied-button' : 'secondary-button'}
-            onClick={copyRoomLink}
-          >
-            {linkCopied ? 'تم نسخ الرابط شاركه!' : 'مشاركة'}
-          </button>
-
           <button
             type="button"
             className="secondary-button"
