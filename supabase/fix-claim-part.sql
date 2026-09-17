@@ -117,7 +117,7 @@ begin
     and status = 'locked';
 
   update public.rooms
-  set status = 'completed'
+  set status = 'completed', completed_at = coalesce(completed_at, now())
   where id = target_room_id
     and not exists (
       select 1 from public.parts
@@ -162,6 +162,50 @@ $$;
 
 grant execute on function public.send_message(uuid, uuid, text, text) to anon, authenticated;
 
+alter table public.rooms add column if not exists completed_at timestamptz;
+
+create or replace function public.delete_expired_completed_rooms()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from public.rooms
+  where status = 'completed'
+    and completed_at is not null
+    and completed_at <= now() - interval '30 minutes';
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count;
+end;
+$$;
+
+grant execute on function public.delete_expired_completed_rooms() to anon, authenticated;
+
+create extension if not exists pg_cron;
+
+do $job$
+declare
+  existing_job_id bigint;
+begin
+  select jobid into existing_job_id
+  from cron.job
+  where jobname = 'khetma-delete-completed-rooms';
+
+  if existing_job_id is not null then
+    perform cron.unschedule(existing_job_id);
+  end if;
+
+  perform cron.schedule(
+    'khetma-delete-completed-rooms',
+    '*/5 * * * *',
+    $command$select public.delete_expired_completed_rooms();$command$
+  );
+end
+$job$;
 -- Keep sessions permanently and prevent duplicate names, including completed sessions.
 -- Existing duplicate names can prevent a unique index from being created.
 -- create_room below uses a transaction lock and remains safe for new sessions.

@@ -210,7 +210,7 @@ function CreateRoomPage() {
           >
             {loading
               ? 'جاري الإنشاء...'
-              : 'إنشاء الختمة'}
+              : 'ابدأ الختمة'}
           </button>
         </form>
       </div>
@@ -1197,7 +1197,7 @@ function PartPage({
                     setIsRunning(true)
                   }}
                 >
-                  فتح ملف الجزء وبدء القراءة
+                  بدء القراءة
                 </button>
               )}
 
@@ -1207,7 +1207,7 @@ function PartPage({
                   className="secondary-button"
                   onClick={() => setIsPdfOpen(false)}
                 >
-                  العودة لنافذة الجزء
+                  العودة
                 </button>
               )}
             </div>
@@ -1300,7 +1300,7 @@ function PartPage({
                         setIsRunning(true)
                       }}
                     >
-                      فتح ملف الجزء
+                      بدء القراءة
                     </button>
 
                     <button

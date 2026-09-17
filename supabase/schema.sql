@@ -30,7 +30,8 @@ create table if not exists public.rooms (
   owner_token_hash text not null,
   creator_name text not null,
   status text not null default 'active' check (status in ('active', 'completed')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
 );
 
 create table if not exists public.participants (
@@ -65,6 +66,7 @@ create table if not exists public.messages (
 -- Keep an already-created parts table compatible with the current state names.
 alter table public.parts drop constraint if exists parts_status_check;
 alter table public.parts add constraint parts_status_check check (status in ('available', 'reading', 'completed', 'locked'));
+alter table public.rooms add column if not exists completed_at timestamptz;
 
 -- Duplicate names from older data are handled by the locked create_room check below.
 
@@ -174,7 +176,10 @@ begin
   if not found then raise exception 'part_is_not_owned'; end if;
   update participants set current_part = null where id = target_participant_id;
   update parts set status = 'available' where room_id = target_room_id and part_number = requested_part + 1 and status = 'locked';
-  update rooms set status = 'completed' where id = target_room_id and not exists (select 1 from parts where room_id = target_room_id and status <> 'completed');
+  update rooms
+  set status = 'completed', completed_at = coalesce(completed_at, now())
+  where id = target_room_id
+    and not exists (select 1 from parts where room_id = target_room_id and status <> 'completed');
   return json_build_object('ok', true);
 end;
 $$;
