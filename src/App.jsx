@@ -94,7 +94,7 @@ function HomePage() {
         </div>
 
         <p className="footer-text">
-          صُنع من نور الدين
+          تصميم نور الدين العقاد
         </p>
       </main>
     </div>
@@ -878,6 +878,9 @@ function PartPage({
   const [isRunning, setIsRunning] =
     useState(false)
 
+  const [isReaderOpen, setIsReaderOpen] =
+    useState(false)
+
   const [showDua, setShowDua] =
     useState(false)
 
@@ -916,7 +919,7 @@ function PartPage({
 
         if (targetPart?.status === 'reading' && targetPart.reader === currentUser) {
           setRoom(data)
-          setIsRunning(true)
+          setIsReaderOpen(true)
           return
         }
 
@@ -930,7 +933,7 @@ function PartPage({
             const claimedRoom = await getRoomState(roomId)
             if (!cancelled) {
               setRoom(claimedRoom)
-              setIsRunning(true)
+              setIsReaderOpen(false)
             }
             return
           } catch (reason) {
@@ -955,6 +958,20 @@ function PartPage({
       cancelled = true
     }
   }, [roomId, numericPartNumber, currentUser])
+
+  useEffect(() => {
+    if (!isReaderOpen) return undefined
+
+    window.history.pushState({ readerModal: true }, '', window.location.href)
+
+    const keepReaderOpen = () => {
+      setIsReaderOpen(true)
+      window.history.pushState({ readerModal: true }, '', window.location.href)
+    }
+
+    window.addEventListener('popstate', keepReaderOpen)
+    return () => window.removeEventListener('popstate', keepReaderOpen)
+  }, [isReaderOpen])
 
   useEffect(() => {
     if (!isRunning) {
@@ -1159,9 +1176,6 @@ function PartPage({
           </h1>
         </div>
 
-        <div className="reader-timer">
-          {formatTime(seconds)}
-        </div>
       </header>
 
       {error && (
@@ -1170,7 +1184,63 @@ function PartPage({
         </div>
       )}
 
-      <main className="reader-content">
+      {isMyPart && !isReaderOpen && (
+        <section className="reader-start-card">
+          <h2>الجزء {part.number} جاهز للقراءة</h2>
+          <p>اضغط بدء القراءة لفتح المصحف وتشغيل المؤقت.</p>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              setIsReaderOpen(true)
+              setIsRunning(true)
+            }}
+          >
+            بدء القراءة
+          </button>
+        </section>
+      )}
+
+      {!isMyPart && !isReaderOpen && (
+        <section className="reader-start-card">
+          {isCompleted ? (
+            <>
+              <h2>تم إكمال الجزء</h2>
+              <p>
+                قرأه {part.reader || 'مشارك'}
+              </p>
+            </>
+          ) : (
+            <>
+              <h2>الجزء قيد القراءة</h2>
+              <p>
+                يقرأه حاليًا {part.reader || 'مشارك آخر'}
+              </p>
+            </>
+          )}
+        </section>
+      )}
+
+      {isReaderOpen && (
+        <div className="modal-overlay reader-modal-overlay">
+          <div className="reader-modal">
+            <div className="reader-modal-top">
+              <div className="reader-timer">
+                {formatTime(seconds)}
+              </div>
+
+              {isMyPart && (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setIsRunning((value) => !value)}
+                >
+                  {isRunning ? 'إيقاف المؤقت' : 'بدء القراءة'}
+                </button>
+              )}
+            </div>
+
+            <main className="reader-content">
         <section className="reader-pdf-card">
           <div className="reader-toolbar">
             <button
@@ -1321,21 +1391,6 @@ function PartPage({
                   <>
                     <button
                       type="button"
-                      className="primary-button"
-                      onClick={() =>
-                        setIsRunning(
-                          (value) =>
-                            !value,
-                        )
-                      }
-                    >
-                      {isRunning
-                        ? 'إيقاف المؤقت'
-                        : 'متابعة'}
-                    </button>
-
-                    <button
-                      type="button"
                       className="secondary-button"
                       onClick={
                         resetTimer
@@ -1375,7 +1430,18 @@ function PartPage({
             </div>
           </div>
         </aside>
-      </main>
+            </main>
+
+            <button
+              type="button"
+              className="secondary-button reader-modal-close"
+              onClick={() => setIsReaderOpen(false)}
+            >
+              إغلاق نافذة القراءة
+            </button>
+          </div>
+        </div>
+      )}
 
       {showDua && (
         <div className="modal-overlay">
