@@ -8,7 +8,6 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
-import { Document, Page, pdfjs } from 'react-pdf'
 import { BookOpen } from 'lucide-react'
 
 import {
@@ -25,11 +24,6 @@ import {
 } from './lib/roomApi'
 
 import './App.css'
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
-
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
 
 const quranPdfPath = (partNumber) =>
   `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf`
@@ -856,7 +850,7 @@ function PartPage({
     useState(false)
 
   const [pdfPages, setPdfPages] =
-    useState(0)
+    useState(false)
 
   const [room, setRoom] =
     useState(null)
@@ -1057,13 +1051,10 @@ function PartPage({
     setSeconds(0)
   }
 
-  const onDocumentLoadSuccess =
-    ({ numPages }) => {
-      setPdfPages(numPages)
-  }
+  const onPdfLoad = () => setPdfPages(true)
 
   const canFinish = Boolean(
-    isMyPart && pdfPages > 0,
+    isMyPart && pdfPages,
   )
 
   /*
@@ -1216,30 +1207,12 @@ function PartPage({
         {isPdfOpen && (
           <section className="reader-pdf-card reader-file-card">
             <div className="pdf-viewer">
-              <Document
-                file={quranPdfPath(part.number)}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={
-                  <div className="loading-state">
-                    جاري تحميل الجزء كاملًا...
-                  </div>
-                }
-                error={
-                  <div className="error-box">
-                    تعذر تحميل ملف الجزء.
-                  </div>
-                }
-              >
-                {Array.from({ length: pdfPages }, (_, index) => (
-                  <Page
-                    key={index + 1}
-                    pageNumber={index + 1}
-                    scale={0.8}
-                    renderTextLayer
-                    renderAnnotationLayer
-                  />
-                ))}
-              </Document>
+              <iframe
+                title={`الجزء ${part.number}`}
+                src={quranPdfPath(part.number)}
+                loading="lazy"
+                onLoad={onPdfLoad}
+              />
             </div>
           </section>
         )}
