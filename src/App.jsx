@@ -841,6 +841,9 @@ function PartPage({
   const [isReaderOpen, setIsReaderOpen] =
     useState(false)
 
+  const [confirmPartOpen, setConfirmPartOpen] =
+    useState(false)
+
   const [isPdfOpen, setIsPdfOpen] =
     useState(false)
 
@@ -891,19 +894,9 @@ function PartPage({
             targetPart?.status === 'locked') &&
           targetPart.number === nextPart
         ) {
-          try {
-            await claimPart(roomId, numericPartNumber)
-            const claimedRoom = await getRoomState(roomId)
-            if (!cancelled) {
-              setRoom(claimedRoom)
-              setIsReaderOpen(true)
-            }
-            return
-          } catch (reason) {
-            if (!cancelled) {
-              setError(reason?.message || 'تعذر بدء قراءة الجزء. أعد المحاولة.')
-            }
-          }
+          setRoom(data)
+          setConfirmPartOpen(true)
+          return
         }
 
         if (!cancelled) setRoom(data)
@@ -1046,6 +1039,20 @@ function PartPage({
     }
   }
 
+  const confirmReadPart = async () => {
+    setConfirmPartOpen(false)
+    setError('')
+
+    try {
+      await claimPart(roomId, numericPartNumber)
+      const claimedRoom = await getRoomState(roomId)
+      setRoom(claimedRoom)
+      setIsReaderOpen(true)
+    } catch (reason) {
+      setError(reason?.message || 'تعذر بدء قراءة الجزء. أعد المحاولة.')
+    }
+  }
+
   const resetTimer = () => {
     setIsRunning(false)
     setSeconds(0)
@@ -1169,6 +1176,31 @@ function PartPage({
             </>
           )}
         </section>
+      )}
+
+      {confirmPartOpen && part && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <h2>هل تريد قراءة الجزء {part.number}؟</h2>
+            <p>سيتم حجز هذا الجزء باسمك ويمكنك قراءته الآن.</p>
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={confirmReadPart}
+              >
+                نعم
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => navigate(`/room/${roomId}`)}
+              >
+                لا
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {isReaderOpen && (
