@@ -26,7 +26,7 @@ import {
 import './App.css'
 
 const quranPdfPath = (partNumber) =>
-  `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf`
+  `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf?v=20260920-${partNumber}`
 
 const getNextAvailablePart = (parts) => {
   const nextAvailable = parts.find(
@@ -88,7 +88,7 @@ function HomePage() {
         </div>
 
         <p className="footer-text">
-          تصميم نور الدين العقاد
+          تصميم نور الدين
         </p>
       </main>
     </div>
