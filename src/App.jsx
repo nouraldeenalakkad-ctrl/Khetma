@@ -25,8 +25,13 @@ import {
 
 import './App.css'
 
-const quranPdfPath = (partNumber) =>
-  `/quran/juz-${String(partNumber).padStart(2, '0')}.pdf?v=20260920-${partNumber}`
+const quranPdfPath = (partNumber) => {
+  const filename = partNumber === 9
+    ? 'juzz9.pdf'
+    : `juz-${String(partNumber).padStart(2, '0')}.pdf`
+
+  return `/quran/${filename}?v=20260921-${partNumber}`
+}
 
 const getNextAvailablePart = (parts) => {
   const nextAvailable = parts.find(
