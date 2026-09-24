@@ -25,8 +25,13 @@ import {
 
 import './App.css'
 
-const quranPdfPath = (partNumber) =>
-  `/quran/juz${partNumber}.pdf?v=20260924-${partNumber}`
+const quranPdfPath = (partNumber) => {
+  const sourcePartNumber = partNumber >= 11
+    ? partNumber - 1
+    : partNumber
+
+  return `/quran/juz${sourcePartNumber}.pdf?v=20260924-${partNumber}`
+}
 
 const getNextAvailablePart = (parts) => {
   const nextAvailable = parts.find(
