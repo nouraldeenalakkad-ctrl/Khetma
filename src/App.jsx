@@ -26,9 +26,12 @@ import {
 import './App.css'
 
 const quranPdfPath = (partNumber) => {
+  const fileNumber = partNumber >= 10 && partNumber < 30
+    ? partNumber + 1
+    : partNumber
   const filename = partNumber === 9
     ? 'juzz9.pdf'
-    : `juz-${String(partNumber).padStart(2, '0')}.pdf`
+    : `juz-${String(fileNumber).padStart(2, '0')}.pdf`
 
   return `/quran/${filename}?v=20260924-${partNumber}`
 }
