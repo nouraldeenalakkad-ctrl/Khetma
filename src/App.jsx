@@ -30,7 +30,7 @@ const quranPdfPath = (partNumber) => {
     ? 'juzz9.pdf'
     : `juz-${String(partNumber).padStart(2, '0')}.pdf`
 
-  return `/quran/${filename}?v=20260921-${partNumber}`
+  return `/quran/${filename}?v=20260924-${partNumber}`
 }
 
 const getNextAvailablePart = (parts) => {
