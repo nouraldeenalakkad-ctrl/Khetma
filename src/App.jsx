@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+
 import {
   BrowserRouter,
   Link,
@@ -8,6 +9,7 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom'
+
 import { BookOpen } from 'lucide-react'
 
 import {
@@ -41,7 +43,10 @@ const getNextAvailablePart = (parts) => {
       part.status === 'locked' &&
       parts
         .slice(0, index)
-        .every((previousPart) => previousPart.status !== 'locked'),
+        .every(
+          (previousPart) =>
+            previousPart.status !== 'locked',
+        ),
   )
 
   return firstClaimableLocked?.number || null
@@ -51,19 +56,34 @@ function HomePage() {
   return (
     <div className="page-shell">
       <main className="home-card">
-        <div className="brand-mark" aria-label="شعار خَتْمَة">
+        <div
+          className="brand-mark"
+          aria-label="شعار خَتْمَة"
+        >
           <img
             src="/logo.png"
             alt="شعار خَتْمَة"
             onError={(event) => {
               event.currentTarget.style.display = 'none'
-              event.currentTarget.nextElementSibling.style.display = 'block'
+
+              if (event.currentTarget.nextElementSibling) {
+                event.currentTarget.nextElementSibling.style.display =
+                  'block'
+              }
             }}
           />
-          <BookOpen className="logo-fallback" size={34} strokeWidth={1.8} aria-hidden="true" />
+
+          <BookOpen
+            className="logo-fallback"
+            size={34}
+            strokeWidth={1.8}
+            aria-hidden="true"
+          />
         </div>
 
-        <p className="eyebrow">اجعل لك في القرآن نصيبًا</p>
+        <p className="eyebrow">
+          اجعل لك في القرآن نصيبًا
+        </p>
 
         <h1>خَتْمَة</h1>
 
@@ -147,7 +167,10 @@ function CreateRoomPage() {
   return (
     <div className="page-shell small-shell">
       <div className="card-box">
-        <Link to="/" className="back-link">
+        <Link
+          to="/"
+          className="back-link"
+        >
           ← الرئيسية
         </Link>
 
@@ -157,9 +180,13 @@ function CreateRoomPage() {
           أنشئ ختمة.
         </p>
 
-        <form onSubmit={onSubmit} className="form-stack">
+        <form
+          onSubmit={onSubmit}
+          className="form-stack"
+        >
           <label>
             اسم الختمة
+
             <input
               value={roomName}
               onChange={(event) =>
@@ -171,6 +198,7 @@ function CreateRoomPage() {
 
           <label>
             اسمك
+
             <input
               value={participantName}
               onChange={(event) =>
@@ -182,6 +210,7 @@ function CreateRoomPage() {
 
           <label>
             كلمة مرور الختمة
+
             <input
               type="password"
               value={password}
@@ -254,7 +283,10 @@ function JoinRoomPage({
 
       navigate(`/room/${result.room_id}`)
     } catch (reason) {
-      setError(reason?.message || 'تعذر الانضمام إلى الختمة.')
+      setError(
+        reason?.message ||
+          'تعذر الانضمام إلى الختمة.',
+      )
     } finally {
       setLoading(false)
     }
@@ -263,7 +295,10 @@ function JoinRoomPage({
   return (
     <div className="page-shell small-shell">
       <div className="card-box">
-        <Link to="/" className="back-link">
+        <Link
+          to="/"
+          className="back-link"
+        >
           ← الرئيسية
         </Link>
 
@@ -273,9 +308,13 @@ function JoinRoomPage({
           أدخل رابط الختمة أو معرفها، ثم اسمك وكلمة المرور.
         </p>
 
-        <form onSubmit={onSubmit} className="form-stack">
+        <form
+          onSubmit={onSubmit}
+          className="form-stack"
+        >
           <label>
             رابط أو معرف الختمة
+
             <input
               value={roomId}
               onChange={(event) =>
@@ -287,6 +326,7 @@ function JoinRoomPage({
 
           <label>
             اسمك
+
             <input
               value={participantName}
               onChange={(event) =>
@@ -298,6 +338,7 @@ function JoinRoomPage({
 
           <label>
             كلمة المرور
+
             <input
               type="password"
               value={password}
@@ -331,6 +372,7 @@ function JoinRoomPage({
 
 function RoomRoute() {
   const { roomId } = useParams()
+
   const session = getSession(roomId)
 
   if (!session) {
@@ -362,21 +404,36 @@ function RoomPage({
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
 
+  // نافذة دعاء ختم القرآن
+  const [showDua, setShowDua] = useState(false)
+
   const session = getSession(roomId)
+
   const isCreator = Boolean(
     session?.owner_token,
   )
 
   useEffect(() => {
     let active = true
+
     const refreshRoom = async () => {
       try {
         const data = await getRoomState(roomId)
-        if (active) setRoom(data)
+
+        if (active) {
+          setRoom(data)
+        }
       } catch (reason) {
-        if (active) setError(reason?.message || 'تعذر تحميل الختمة.')
+        if (active) {
+          setError(
+            reason?.message ||
+              'تعذر تحميل الختمة.',
+          )
+        }
       } finally {
-        if (active) setLoading(false)
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
@@ -389,6 +446,7 @@ function RoomPage({
 
     return () => {
       active = false
+
       if (typeof unsubscribe === 'function') {
         unsubscribe()
       }
@@ -472,7 +530,10 @@ function RoomPage({
       )
 
       setMessage('')
-      const updatedRoom = await getRoomState(roomId)
+
+      const updatedRoom =
+        await getRoomState(roomId)
+
       setRoom(updatedRoom)
     } catch (reason) {
       setError(
@@ -584,7 +645,9 @@ function RoomPage({
             تقدم الختمة
           </strong>
 
-          <span>{completion}%</span>
+          <span>
+            {completion}%
+          </span>
         </div>
 
         <div className="progress-track">
@@ -614,6 +677,7 @@ function RoomPage({
           <div className="section-heading">
             <div>
               <h2>أجزاء القرآن</h2>
+
               <p>
                 ابدأ من الجزء المتاح، ويصبح الجزء التالي
                 متاحًا فور حجزه.
@@ -631,8 +695,10 @@ function RoomPage({
             {room.parts.map((part) => {
               const isAvailable =
                 part.number === nextAvailable &&
-                (part.status === 'available' ||
-                  part.status === 'locked')
+                (
+                  part.status === 'available' ||
+                  part.status === 'locked'
+                )
 
               const isReading =
                 part.status === 'reading'
@@ -653,10 +719,14 @@ function RoomPage({
                       : 'locked'
 
               const disabled =
-                (part.status === 'locked' &&
-                  part.number !== nextAvailable) ||
-                (part.status === 'available' &&
-                  part.number !== nextAvailable)
+                (
+                  part.status === 'locked' &&
+                  part.number !== nextAvailable
+                ) ||
+                (
+                  part.status === 'available' &&
+                  part.number !== nextAvailable
+                )
 
               return (
                 <button
@@ -683,6 +753,7 @@ function RoomPage({
                       <span className="part-status">
                         ✓ مكتمل
                       </span>
+
                       <span className="part-status">
                         قرأه: {part.reader || 'مشارك'}
                       </span>
@@ -692,8 +763,7 @@ function RoomPage({
                   {isReading && (
                     <span className="part-status">
                       يقرأه{' '}
-                      {part.reader ||
-                        'مشارك'}
+                      {part.reader || 'مشارك'}
                     </span>
                   )}
 
@@ -718,6 +788,7 @@ function RoomPage({
           <aside className="chat-panel">
             <div className="chat-header">
               <h2>الدردشة</h2>
+
               <span>
                 {room.participants.length}{' '}
                 مشارك
@@ -768,6 +839,52 @@ function RoomPage({
               )}
             </div>
 
+            {/* زر دعاء الختمة يظهر داخل الدردشة فقط بعد اكتمال الأجزاء الثلاثين */}
+            {room.status === 'completed' && (
+              <div
+                style={{
+                  margin: '12px',
+                  padding: '14px',
+                  borderRadius: '16px',
+                  background:
+                    'rgba(25, 135, 84, 0.08)',
+                  border:
+                    '1px solid rgba(25, 135, 84, 0.22)',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    marginBottom: '10px',
+                    fontWeight: 700,
+                    color: '#198754',
+                  }}
+                >
+                  🎉 اكتملت الختمة بالكامل
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowDua(true)
+                  }
+                  style={{
+                    width: '100%',
+                    border: '0',
+                    borderRadius: '13px',
+                    padding: '13px 16px',
+                    background: '#198754',
+                    color: '#fff',
+                    font: 'inherit',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🤲 قراءة دعاء الختمة
+                </button>
+              </div>
+            )}
+
             <form
               onSubmit={onSendMessage}
               className="chat-form"
@@ -801,12 +918,123 @@ function RoomPage({
           </aside>
         )}
       </main>
+
+      {/* نافذة دعاء ختم القرآن */}
+      {showDua && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dua-title"
+        >
+          <div
+            className="dua-modal"
+            style={{
+              width:
+                'min(760px, calc(100vw - 28px))',
+              maxHeight:
+                'min(86vh, 820px)',
+              overflow: 'hidden',
+              padding: '24px',
+              borderRadius: '22px',
+              background: '#fff',
+              boxShadow:
+                '0 20px 60px rgba(0, 0, 0, 0.22)',
+              direction: 'rtl',
+              textAlign: 'right',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            <h2
+              id="dua-title"
+              style={{
+                margin: 0,
+                textAlign: 'center',
+              }}
+            >
+              🤲 دعاء ختم القرآن
+            </h2>
+
+            <div
+              style={{
+                overflowY: 'auto',
+                maxHeight: '62vh',
+                padding: '4px 8px 4px 4px',
+                lineHeight: 2.15,
+                fontSize: '1.05rem',
+                color: '#26332d',
+              }}
+            >
+              <p>
+                اللَّهُمَّ ارْحَمْنِي بالقُرْءَانِ وَاجْعَلهُ لِي إِمَاماً وَنُوراً وَهُدًى وَرَحْمَةً ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ ذَكِّرْنِي مِنْهُ مَانَسِيتُ وَعَلِّمْنِي مِنْهُ مَاجَهِلْتُ وَارْزُقْنِي تِلاَوَتَهُ آنَاءَ اللَّيْلِ وَأَطْرَافَ النَّهَارِ وَاجْعَلْهُ لِي حُجَّةً يَارَبَّ العَالَمِينَ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ أَصْلِحْ لِي دِينِي الَّذِي هُوَ عِصْمَةُ أَمْرِي وَأَصْلِحْ لِي دُنْيَايَ الَّتِي فِيهَا مَعَاشِي وَأَصْلِحْ لِي آخِرَتِي الَّتِي فِيهَا مَعَادِي وَاجْعَلِ الحَيَاةَ زِيَادَةً لِي فِي كُلِّ خَيْرٍ وَاجْعَلِ المَوْتَ رَاحَةً لِي مِنْ كُلِّ شَرٍّ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ اجْعَلْ خَيْرَ عُمْرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِمَهُ وَخَيْرَ أَيَّامِي يَوْمَ أَلْقَاكَ فِيهِ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ إِنِّي أَسْأَلُكَ عِيشَةً هَنِيَّةً وَمِيتَةً سَوِيَّةً وَمَرَدًّا غَيْرَ مُخْزٍ وَلاَ فَاضِحٍ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَ المَسْأَلةِ وَخَيْرَ الدُّعَاءِ وَخَيْرَ النَّجَاحِ وَخَيْرَ العِلْمِ وَخَيْرَ العَمَلِ وَخَيْرَ الثَّوَابِ وَخَيْرَ الحَيَاةِ وَخيْرَ المَمَاتِ وَثَبِّتْنِي وَثَقِّلْ مَوَازِينِي وَحَقِّقْ إِيمَانِي وَارْفَعْ دَرَجَتِي وَتَقَبَّلْ صَلاَتِي وَاغْفِرْ خَطِيئَاتِي وَأَسْأَلُكَ العُلَا مِنَ الجَنَّةِ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ إِنِّي أَسْأَلُكَ مُوجِبَاتِ رَحْمَتِكَ وَعَزَائِمَ مَغْفِرَتِكَ وَالسَّلاَمَةَ مِنْ كُلِّ إِثْمٍ وَالغَنِيمَةَ مِنْ كُلِّ بِرٍّ وَالفَوْزَ بِالجَنَّةِ وَالنَّجَاةَ مِنَ النَّارِ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ أَحْسِنْ عَاقِبَتَنَا فِي الأُمُورِ كُلِّهَا وَأجِرْنَا مِنْ خِزْيِ الدُّنْيَا وَعَذَابِ الآخِرَةِ ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ اقْسِمْ لَنَا مِنْ خَشْيَتِكَ مَاتَحُولُ بِهِ بَيْنَنَا وَبَيْنَ مَعْصِيَتِكَ وَمِنْ طَاعَتِكَ مَاتُبَلِّغُنَا بِهَا جَنَّتَكَ وَمِنَ اليَقِينِ مَاتُهَوِّنُ بِهِ عَلَيْنَا مَصَائِبَ الدُّنْيَا وَمَتِّعْنَا بِأَسْمَاعِنَا وَأَبْصَارِنَا وَقُوَّتِنَا مَاأَحْيَيْتَنَا وَاجْعَلْهُ الوَارِثَ مِنَّا وَاجْعَلْ ثَأْرَنَا عَلَى مَنْ ظَلَمَنَا وَانْصُرْنَا عَلَى مَنْ عَادَانَا وَلاَ تجْعَلْ مُصِيبَتَنَا فِي دِينِنَا وَلاَ تَجْعَلِ الدُّنْيَا أَكْبَرَ هَمِّنَا وَلَا مَبْلَغَ عِلْمِنَا وَلاَ تُسَلِّطْ عَلَيْنَا مَنْ لَا يَرْحَمُنَا ۞
+              </p>
+
+              <p>
+                اللَّهُمَّ لَا تَدَعْ لَنَا ذَنْبًا إِلَّا غَفَرْتَهُ وَلَا هَمَّا إِلَّا فَرَّجْتَهُ وَلَا دَيْنًا إِلَّا قَضَيْتَهُ وَلَا حَاجَةً مِنْ حَوَائِجِ الدُّنْيَا وَالآخِرَةِ إِلَّا قَضَيْتَهَا يَاأَرْحَمَ الرَّاحِمِينَ ۞
+              </p>
+
+              <p>
+                رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ وَصَلَّى اللهُ عَلَى سَيِّدِنَا وَنَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَأَصْحَابِهِ الأَخْيَارِ وَسَلَّمَ تَسْلِيمًا كَثِيراً.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                setShowDua(false)
+              }
+              style={{
+                width: '100%',
+                flexShrink: 0,
+              }}
+            >
+              تم
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function PartRoute() {
   const { roomId } = useParams()
+
   const session = getSession(roomId)
 
   if (!session) {
@@ -828,8 +1056,7 @@ function PartRoute() {
 function PartPage({
   currentUser,
 }) {
-  const { roomId, partNumber } =
-    useParams()
+  const { roomId, partNumber } = useParams()
 
   const navigate = useNavigate()
 
@@ -848,10 +1075,8 @@ function PartPage({
   const [isPdfOpen, setIsPdfOpen] =
     useState(false)
 
-  const pdfOpenRef = useRef(false)
-
-  const [showDua, setShowDua] =
-    useState(false)
+  const pdfOpenRef =
+    useRef(false)
 
   const [pdfPages, setPdfPages] =
     useState(false)
@@ -879,20 +1104,30 @@ function PartPage({
       .then(async (data) => {
         if (cancelled) return
 
-        const targetPart = data.parts.find(
-          (item) => item.number === numericPartNumber,
-        )
-        const nextPart = getNextAvailablePart(data.parts)
+        const targetPart =
+          data.parts.find(
+            (item) =>
+              item.number ===
+              numericPartNumber,
+          )
 
-        if (targetPart?.status === 'reading' && targetPart.reader === currentUser) {
+        const nextPart =
+          getNextAvailablePart(data.parts)
+
+        if (
+          targetPart?.status === 'reading' &&
+          targetPart.reader === currentUser
+        ) {
           setRoom(data)
           setIsReaderOpen(true)
           return
         }
 
         if (
-          (targetPart?.status === 'available' ||
-            targetPart?.status === 'locked') &&
+          (
+            targetPart?.status === 'available' ||
+            targetPart?.status === 'locked'
+          ) &&
           targetPart.number === nextPart
         ) {
           setRoom(data)
@@ -900,7 +1135,9 @@ function PartPage({
           return
         }
 
-        if (!cancelled) setRoom(data)
+        if (!cancelled) {
+          setRoom(data)
+        }
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -914,13 +1151,22 @@ function PartPage({
     return () => {
       cancelled = true
     }
-  }, [roomId, numericPartNumber, currentUser])
+  }, [
+    roomId,
+    numericPartNumber,
+    currentUser,
+  ])
 
   useEffect(() => {
-    if (!isReaderOpen) return undefined
+    if (!isReaderOpen) {
+      return undefined
+    }
 
     window.history.pushState(
-      { readerModal: true, pdfOpen: false },
+      {
+        readerModal: true,
+        pdfOpen: false,
+      },
       '',
       window.location.href,
     )
@@ -934,8 +1180,16 @@ function PartPage({
       setIsReaderOpen(false)
     }
 
-    window.addEventListener('popstate', handleBack)
-    return () => window.removeEventListener('popstate', handleBack)
+    window.addEventListener(
+      'popstate',
+      handleBack,
+    )
+
+    return () =>
+      window.removeEventListener(
+        'popstate',
+        handleBack,
+      )
   }, [isReaderOpen])
 
   useEffect(() => {
@@ -1028,17 +1282,20 @@ function PartPage({
         part.number,
       )
 
-      const updatedRoom = await getRoomState(roomId)
+      const updatedRoom =
+        await getRoomState(roomId)
+
       setRoom(updatedRoom)
 
-      // بعد إكمال الجزء 30 تظهر نافذة دعاء ختم القرآن.
-      if (part.number === 30 && updatedRoom.status === 'completed') {
-        setIsReaderOpen(false)
-        setShowDua(true)
-        return
-      }
+      // بعد إكمال أي جزء، بما فيه الجزء 30،
+      // نعود إلى غرفة الختمة.
+      // عند اكتمال الجزء 30 سيظهر زر دعاء الختمة داخل الدردشة.
+      setIsReaderOpen(false)
 
-      navigate(`/room/${roomId}`, { replace: true })
+      navigate(
+        `/room/${roomId}`,
+        { replace: true },
+      )
     } catch (reason) {
       setError(
         reason?.message ||
@@ -1054,12 +1311,21 @@ function PartPage({
     setError('')
 
     try {
-      await claimPart(roomId, numericPartNumber)
-      const claimedRoom = await getRoomState(roomId)
+      await claimPart(
+        roomId,
+        numericPartNumber,
+      )
+
+      const claimedRoom =
+        await getRoomState(roomId)
+
       setRoom(claimedRoom)
       setIsReaderOpen(true)
     } catch (reason) {
-      setError(reason?.message || 'تعذر بدء قراءة الجزء. أعد المحاولة.')
+      setError(
+        reason?.message ||
+          'تعذر بدء قراءة الجزء. أعد المحاولة.',
+      )
     }
   }
 
@@ -1068,16 +1334,13 @@ function PartPage({
     setSeconds(0)
   }
 
-  const onPdfLoad = () => setPdfPages(true)
+  const onPdfLoad = () =>
+    setPdfPages(true)
 
   const canFinish = Boolean(
     isMyPart && pdfPages,
   )
 
-  /*
-   * مهم:
-  * لا نرجع للرئيسية أثناء تحميل الجلسة.
-   */
   if (!room) {
     return (
       <div className="page-shell small-shell">
@@ -1142,7 +1405,6 @@ function PartPage({
             الجزء {part.number}
           </h1>
         </div>
-
       </header>
 
       {error && (
@@ -1153,8 +1415,14 @@ function PartPage({
 
       {isMyPart && !isReaderOpen && (
         <section className="reader-start-card">
-          <h2>الجزء {part.number} جاهز للقراءة</h2>
-          <p>اضغط بدء القراءة لفتح المصحف وتشغيل المؤقت.</p>
+          <h2>
+            الجزء {part.number} جاهز للقراءة
+          </h2>
+
+          <p>
+            اضغط بدء القراءة لفتح المصحف وتشغيل المؤقت.
+          </p>
+
           <button
             type="button"
             className="primary-button"
@@ -1172,16 +1440,23 @@ function PartPage({
         <section className="reader-start-card">
           {isCompleted ? (
             <>
-              <h2>تم إكمال الجزء</h2>
+              <h2>
+                تم إكمال الجزء
+              </h2>
+
               <p>
                 قرأه {part.reader || 'مشارك'}
               </p>
             </>
           ) : (
             <>
-              <h2>الجزء قيد القراءة</h2>
+              <h2>
+                الجزء قيد القراءة
+              </h2>
+
               <p>
-                يقرأه حاليًا {part.reader || 'مشارك آخر'}
+                يقرأه حاليًا{' '}
+                {part.reader || 'مشارك آخر'}
               </p>
             </>
           )}
@@ -1191,8 +1466,14 @@ function PartPage({
       {confirmPartOpen && part && (
         <div className="modal-overlay">
           <div className="confirm-modal">
-            <h2>هل تريد قراءة الجزء {part.number}؟</h2>
-            <p>سيتم حجز هذا الجزء باسمك ويمكنك قراءته الآن.</p>
+            <h2>
+              هل تريد قراءة الجزء {part.number}؟
+            </h2>
+
+            <p>
+              سيتم حجز هذا الجزء باسمك ويمكنك قراءته الآن.
+            </p>
+
             <div className="confirm-actions">
               <button
                 type="button"
@@ -1201,10 +1482,15 @@ function PartPage({
               >
                 نعم
               </button>
+
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => navigate(`/room/${roomId}`)}
+                onClick={() =>
+                  navigate(
+                    `/room/${roomId}`,
+                  )
+                }
               >
                 لا
               </button>
@@ -1238,7 +1524,9 @@ function PartPage({
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() => setIsPdfOpen(false)}
+                  onClick={() =>
+                    setIsPdfOpen(false)
+                  }
                 >
                   العودة
                 </button>
@@ -1246,160 +1534,138 @@ function PartPage({
             </div>
 
             <main className="reader-content">
-        {isPdfOpen && (
-          <section className="reader-pdf-card reader-file-card">
-            <div className="pdf-viewer">
-              <iframe
-                title={`الجزء ${part.number}`}
-                src={quranPdfPath(part.number)}
-                loading="lazy"
-                onLoad={onPdfLoad}
-              />
-            </div>
-          </section>
-        )}
-
-        {!isPdfOpen && (
-          <aside className="reader-side-panel">
-          <div className="card-box">
-            <h2>
-              الجزء {part.number}
-            </h2>
-
-            {isCompleted && (
-              <div className="success-box">
-                ✓ تم إكمال هذا الجزء
-                {part.reader
-                  ? ` بواسطة ${part.reader}`
-                  : ''}
-              </div>
-            )}
-
-            {isReading &&
-              !isMyPart && (
-                <div className="warning-box">
-                  هذا الجزء يقرأه حاليًا:
-                  <strong>
-                    {part.reader ||
-                      'مشارك آخر'}
-                  </strong>
-                </div>
+              {isPdfOpen && (
+                <section className="reader-pdf-card reader-file-card">
+                  <div className="pdf-viewer">
+                    <iframe
+                      title={`الجزء ${part.number}`}
+                      src={quranPdfPath(part.number)}
+                      loading="lazy"
+                      onLoad={onPdfLoad}
+                    />
+                  </div>
+                </section>
               )}
 
-            {!isCompleted &&
-              !isReading && (
-                <div className="info-box">
-                  جاري فتح الجزء وبدء المؤقت...
-                </div>
+              {!isPdfOpen && (
+                <aside className="reader-side-panel">
+                  <div className="card-box">
+                    <h2>
+                      الجزء {part.number}
+                    </h2>
+
+                    {isCompleted && (
+                      <div className="success-box">
+                        ✓ تم إكمال هذا الجزء
+                        {part.reader
+                          ? ` بواسطة ${part.reader}`
+                          : ''}
+                      </div>
+                    )}
+
+                    {isReading &&
+                      !isMyPart && (
+                        <div className="warning-box">
+                          هذا الجزء يقرأه حاليًا:
+                          <strong>
+                            {part.reader ||
+                              'مشارك آخر'}
+                          </strong>
+                        </div>
+                      )}
+
+                    {!isCompleted &&
+                      !isReading && (
+                        <div className="info-box">
+                          جاري فتح الجزء وبدء المؤقت...
+                        </div>
+                      )}
+
+                    {isMyPart && (
+                      <div className="reading-box">
+                        أنت تقرأ هذا الجزء الآن.
+                      </div>
+                    )}
+
+                    <div className="timer-box">
+                      <div className="timer-value">
+                        {formatTime(seconds)}
+                      </div>
+
+                      <div className="timer-actions">
+                        {isMyPart && (
+                          <>
+                            <button
+                              type="button"
+                              className="primary-button"
+                              onClick={() => {
+                                setIsPdfOpen(true)
+                                setIsRunning(true)
+                              }}
+                            >
+                              بدء القراءة
+                            </button>
+
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={
+                                resetTimer
+                              }
+                            >
+                              إعادة ضبط المؤقت
+                            </button>
+                          </>
+                        )}
+
+                        {!isCompleted && (
+                          <button
+                            type="button"
+                            className={
+                              canFinish
+                                ? 'success-button finish-button-ready'
+                                : 'success-button finish-button'
+                            }
+                            onClick={onFinish}
+                            disabled={
+                              !canFinish ||
+                              finishing
+                            }
+                          >
+                            {finishing
+                              ? 'جاري إنهاء الجزء...'
+                              : 'تم قراءة الجزء'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="reader-note">
+                      <strong>
+                        تنبيه:
+                      </strong>
+
+                      <p>
+                        لن يتم إنهاء الجزء
+                        تلقائيًا عند الوصول
+                        إلى آخر صفحة. اضغط
+                        «تم قراءة الجزء» بعد
+                        الانتهاء فعليًا.
+                      </p>
+                    </div>
+                  </div>
+                </aside>
               )}
-
-            {isMyPart && (
-              <div className="reading-box">
-                أنت تقرأ هذا الجزء الآن.
-              </div>
-            )}
-
-            <div className="timer-box">
-              <div className="timer-value">
-                {formatTime(seconds)}
-              </div>
-
-              <div className="timer-actions">
-                {isMyPart && (
-                  <>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() => {
-                        setIsPdfOpen(true)
-                        setIsRunning(true)
-                      }}
-                    >
-                      بدء القراءة
-                    </button>
-
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={
-                        resetTimer
-                      }
-                    >
-                      إعادة ضبط المؤقت
-                    </button>
-
-                  </>
-                )}
-
-                {!isCompleted && (
-                  <button
-                    type="button"
-                    className={canFinish ? 'success-button finish-button-ready' : 'success-button finish-button'}
-                    onClick={onFinish}
-                    disabled={!canFinish || finishing}
-                  >
-                    {finishing ? 'جاري إنهاء الجزء...' : 'تم قراءة الجزء'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="reader-note">
-              <strong>
-                تنبيه:
-              </strong>
-
-              <p>
-                لن يتم إنهاء الجزء
-                تلقائيًا عند الوصول
-                إلى آخر صفحة. اضغط
-                «تم قراءة الجزء» بعد
-                الانتهاء فعليًا.
-              </p>
-            </div>
-          </div>
-          </aside>
-        )}
             </main>
 
             <button
               type="button"
               className="secondary-button reader-modal-close"
-              onClick={() => setIsReaderOpen(false)}
-            >
-              إغلاق نافذة القراءة
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showDua && (
-        <div className="modal-overlay">
-          <div className="dua-modal">
-            <h2>
-              تمت الختمة بنجاح 🎉
-            </h2>
-
-            <p>
-              الحمد لله الذي بنعمته
-              تتم الصالحات.
-            </p>
-
-            <p>
-              اللهم اجعل القرآن ربيع
-              قلوبنا، ونور صدورنا،
-              وجلاء أحزاننا، وذهاب
-              همومنا.
-            </p>
-
-            <button
-              type="button"
-              className="primary-button"
               onClick={() =>
-                setShowDua(false)
+                setIsReaderOpen(false)
               }
             >
-              تم
+              إغلاق نافذة القراءة
             </button>
           </div>
         </div>
