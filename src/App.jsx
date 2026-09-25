@@ -26,11 +26,7 @@ import {
 import './App.css'
 
 const quranPdfPath = (partNumber) => {
-  const sourcePartNumber = partNumber >= 11
-    ? partNumber - 1
-    : partNumber
-
-  return `/quran/juz${sourcePartNumber}.pdf?v=20260924-${partNumber}`
+  return `/quran/juz${partNumber}.pdf?v=20260924-${partNumber}`
 }
 
 const getNextAvailablePart = (parts) => {
@@ -158,7 +154,7 @@ function CreateRoomPage() {
         <h1>إنشاء ختمة</h1>
 
         <p className="muted-text">
-          أنشئ جلسة وشارك الرابط مع من تريد أن يشاركك الختمة.
+          أنشئ ختمة.
         </p>
 
         <form onSubmit={onSubmit} className="form-stack">
@@ -169,7 +165,7 @@ function CreateRoomPage() {
               onChange={(event) =>
                 setRoomName(event.target.value)
               }
-              placeholder="مثلاً: ختمة العائلة"
+              placeholder="اكتب اسم الختمة"
             />
           </label>
 
@@ -233,7 +229,7 @@ function JoinRoomPage({
     setError('')
 
     if (!roomId.trim()) {
-      setError('أدخل رابط أو معرف الختمة.')
+      setError('أدخل اسم الختمة.')
       return
     }
 
@@ -1032,7 +1028,16 @@ function PartPage({
         part.number,
       )
 
-      // The room page reloads the completed state from Supabase.
+      const updatedRoom = await getRoomState(roomId)
+      setRoom(updatedRoom)
+
+      // بعد إكمال الجزء 30 تظهر نافذة دعاء ختم القرآن.
+      if (part.number === 30 && updatedRoom.status === 'completed') {
+        setIsReaderOpen(false)
+        setShowDua(true)
+        return
+      }
+
       navigate(`/room/${roomId}`, { replace: true })
     } catch (reason) {
       setError(
