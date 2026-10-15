@@ -1,4 +1,20 @@
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+
+do $pgcrypto_schema$
+declare
+  installed_schema text;
+begin
+  select namespace.nspname into installed_schema
+  from pg_extension extension_record
+  join pg_namespace namespace on namespace.oid = extension_record.extnamespace
+  where extension_record.extname = 'pgcrypto';
+
+  if installed_schema is distinct from 'extensions' then
+    execute 'alter extension pgcrypto set schema extensions';
+  end if;
+end
+$pgcrypto_schema$;
 
 -- Compatibility for functions created by the earlier schema version.
 create or replace function public.digest(value text, algorithm text)
@@ -21,7 +37,16 @@ $$;
 
 -- Remove the old zero-argument RPC if an earlier schema was applied.
 drop function if exists public.create_room();
+drop function if exists public.create_room(text, text, text);
 drop function if exists public.join_room();
+drop function if exists public.join_room(uuid, text, text);
+drop function if exists public.claim_part(uuid, uuid, text, integer);
+drop function if exists public.claim_part(uuid, uuid, text, integer, text, text);
+drop function if exists public.complete_part(uuid, uuid, text, integer);
+drop function if exists public.delete_room(uuid, text);
+drop function if exists public.send_message(uuid, uuid, text, text, text);
+drop function if exists public.send_message(uuid, uuid, text, text);
+drop function if exists public.leave_room(uuid, uuid, text);
 
 create table if not exists public.rooms (
   id uuid primary key default gen_random_uuid(),
@@ -50,6 +75,8 @@ create table if not exists public.parts (
   part_number integer not null check (part_number between 1 and 30),
   status text not null default 'locked' check (status in ('available', 'reading', 'completed', 'locked')),
   participant_id uuid references public.participants(id) on delete set null,
+  reading_type text not null default 'self' check (reading_type in ('self', 'child')),
+  child_name text,
   started_at timestamptz,
   completed_at timestamptz,
   unique (room_id, part_number)
@@ -66,6 +93,11 @@ create table if not exists public.messages (
 -- Keep an already-created parts table compatible with the current state names.
 alter table public.parts drop constraint if exists parts_status_check;
 alter table public.parts add constraint parts_status_check check (status in ('available', 'reading', 'completed', 'locked'));
+alter table public.parts add column if not exists reading_type text default 'self';
+alter table public.parts add column if not exists child_name text;
+alter table public.parts drop constraint if exists parts_reading_type_check;
+alter table public.parts add constraint parts_reading_type_check check (reading_type in ('self', 'child'));
+update public.parts set status = 'available' where status = 'locked';
 alter table public.rooms add column if not exists completed_at timestamptz;
 
 -- Duplicate names from older data are handled by the locked create_room check below.
@@ -89,15 +121,12 @@ returns json language plpgsql security definer set search_path = public as $$
 declare
   new_room_id uuid := gen_random_uuid();
   new_participant_id uuid := gen_random_uuid();
-  owner_token text := encode(
-    extensions.digest(
-      convert_to(trim(room_password) || ':' || new_room_id::text || ':' || lower(trim(participant_name)), 'UTF8'),
-      'sha256'::text
-    ),
-    'hex'
-  );
+  safe_participant_name text := coalesce(nullif(trim(participant_name), ''), 'مشارك');
+  owner_token text := encode(extensions.gen_random_bytes(32), 'hex');
 begin
-  if char_length(trim(room_name)) = 0 or char_length(trim(participant_name)) = 0 or char_length(room_password) < 4 then
+  -- room_password remains in the RPC signature for client compatibility.
+  if coalesce(char_length(trim(room_name)), 0) not between 1 and 120
+    or char_length(safe_participant_name) not between 2 and 80 then
     raise exception 'invalid_room_data';
   end if;
   perform pg_advisory_xact_lock(hashtextextended(lower(trim(room_name)), 0));
@@ -105,11 +134,11 @@ begin
     raise exception 'room_already_exists';
   end if;
   insert into rooms (id, name, password_hash, owner_token_hash, creator_name)
-  values (new_room_id, trim(room_name), encode(extensions.digest(room_password, 'sha256'), 'hex'), encode(extensions.digest(owner_token, 'sha256'), 'hex'), trim(participant_name));
+  values (new_room_id, trim(room_name), encode(extensions.digest(owner_token, 'sha256'), 'hex'), encode(extensions.digest(owner_token, 'sha256'), 'hex'), safe_participant_name);
   insert into participants (id, room_id, name, session_token_hash)
-  values (new_participant_id, new_room_id, trim(participant_name), encode(extensions.digest(owner_token, 'sha256'), 'hex'));
+  values (new_participant_id, new_room_id, safe_participant_name, encode(extensions.digest(owner_token, 'sha256'), 'hex'));
   insert into parts (room_id, part_number, status)
-  select new_room_id, number, case when number = 1 then 'available' else 'locked' end
+  select new_room_id, number, 'available'
   from generate_series(1, 30) as number;
   return json_build_object('room_id', new_room_id, 'participant_id', new_participant_id, 'session_token', owner_token, 'owner_token', owner_token);
 end;
@@ -121,47 +150,57 @@ declare
   room_record rooms%rowtype;
   new_participant_id uuid := gen_random_uuid();
   session_token text := encode(extensions.gen_random_bytes(32), 'hex');
-  owner_token text;
+  safe_participant_name text := coalesce(nullif(trim(participant_name), ''), 'مشارك');
 begin
+  -- room_password remains in the RPC signature for client compatibility.
   select * into room_record from rooms where id = target_room_id;
-  if not found or room_record.password_hash <> encode(extensions.digest(room_password, 'sha256'), 'hex') then raise exception 'invalid_room_credentials'; end if;
-  if lower(trim(participant_name)) = lower(trim(room_record.creator_name)) then
-    owner_token := encode(
-      extensions.digest(
-        convert_to(trim(room_password) || ':' || target_room_id::text || ':' || lower(trim(participant_name)), 'UTF8'),
-        'sha256'::text
-      ),
-      'hex'
-    );
+  if not found then
+    raise exception 'room_not_found';
   end if;
-  insert into participants (id, room_id, name, session_token_hash)
-  values (new_participant_id, target_room_id, trim(participant_name), encode(extensions.digest(session_token, 'sha256'), 'hex'))
-  on conflict (room_id, name) do update set session_token_hash = excluded.session_token_hash
-  returning id into new_participant_id;
-  return json_build_object('room_id', target_room_id, 'participant_id', new_participant_id, 'session_token', session_token, 'owner_token', owner_token);
+  if char_length(safe_participant_name) not between 2 and 80 then
+    raise exception 'invalid_participant_name';
+  end if;
+  begin
+    insert into participants (id, room_id, name, session_token_hash)
+    values (new_participant_id, target_room_id, safe_participant_name, encode(extensions.digest(session_token, 'sha256'), 'hex'))
+    returning id into new_participant_id;
+  exception when unique_violation then
+    raise exception 'participant_name_taken';
+  end;
+  return json_build_object('room_id', target_room_id, 'participant_id', new_participant_id, 'session_token', session_token, 'owner_token', null);
 end;
 $$;
 
-create or replace function public.claim_part(target_room_id uuid, target_participant_id uuid, session_token text, requested_part integer)
+create or replace function public.claim_part(target_room_id uuid, target_participant_id uuid, session_token text, requested_part integer, requested_reading_type text default 'self', requested_child_name text default null)
 returns json language plpgsql security definer set search_path = public as $$
-declare selected_part parts%rowtype;
+declare
+  selected_part parts%rowtype;
+  normalized_reading_type text;
+  normalized_child_name text;
 begin
   if not exists (select 1 from participants where id = target_participant_id and room_id = target_room_id and session_token_hash = public.khatmah_hash(session_token)) then raise exception 'invalid_session'; end if;
-  if exists (select 1 from participants where id = target_participant_id and current_part is not null) then raise exception 'part_is_not_available'; end if;
-  update parts
-  set status = 'available'
-  where room_id = target_room_id
-    and part_number = requested_part
-    and status = 'locked'
-    and not exists (
-      select 1 from parts
-      where room_id = target_room_id
-        and part_number < requested_part
-        and status = 'locked'
-    );
+
+  normalized_reading_type := lower(coalesce(trim(requested_reading_type), 'self'));
+  if normalized_reading_type not in ('self', 'child') then
+    raise exception 'invalid_reading_type';
+  end if;
+
+  if normalized_reading_type = 'child' then
+    normalized_child_name := trim(coalesce(requested_child_name, ''));
+    if char_length(normalized_child_name) < 2 then
+      raise exception 'child_name_required';
+    end if;
+  else
+    normalized_child_name := null;
+  end if;
+
   select * into selected_part from parts where room_id = target_room_id and part_number = requested_part for update;
-  if selected_part.status <> 'available' then raise exception 'part_is_not_available'; end if;
-  update parts set status = 'reading', participant_id = target_participant_id, started_at = now() where id = selected_part.id;
+  if not found or selected_part.status <> 'available' then raise exception 'part_is_not_available'; end if;
+
+  update parts
+  set status = 'reading', participant_id = target_participant_id, reading_type = normalized_reading_type, child_name = normalized_child_name, started_at = now()
+  where id = selected_part.id;
+
   update participants set current_part = requested_part where id = target_participant_id;
   update parts set status = 'available' where room_id = target_room_id and part_number = requested_part + 1 and status = 'locked';
   return json_build_object('ok', true);
@@ -174,8 +213,15 @@ begin
   if not exists (select 1 from participants where id = target_participant_id and room_id = target_room_id and session_token_hash = public.khatmah_hash(session_token)) then raise exception 'invalid_session'; end if;
   update parts set status = 'completed', completed_at = now() where room_id = target_room_id and part_number = requested_part and status = 'reading' and participant_id = target_participant_id;
   if not found then raise exception 'part_is_not_owned'; end if;
-  update participants set current_part = null where id = target_participant_id;
-  update parts set status = 'available' where room_id = target_room_id and part_number = requested_part + 1 and status = 'locked';
+  update participants
+  set current_part = (
+    select min(part_number)
+    from parts
+    where room_id = target_room_id
+      and participant_id = target_participant_id
+      and status = 'reading'
+  )
+  where id = target_participant_id;
   update rooms
   set status = 'completed', completed_at = coalesce(completed_at, now())
   where id = target_room_id
@@ -204,29 +250,139 @@ begin
 end;
 $$;
 
+create or replace function public.update_participant_name(target_room_id uuid, target_participant_id uuid, session_token text, new_name text)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  normalized_name text := trim(coalesce(new_name, ''));
+begin
+  if char_length(normalized_name) not between 2 and 80 then
+    raise exception 'invalid_participant_name';
+  end if;
+
+  if not exists (
+    select 1 from participants
+    where id = target_participant_id
+      and room_id = target_room_id
+      and session_token_hash = public.khatmah_hash(session_token)
+  ) then
+    raise exception 'invalid_session';
+  end if;
+
+  begin
+    update participants
+    set name = normalized_name
+    where id = target_participant_id and room_id = target_room_id;
+  exception when unique_violation then
+    raise exception 'participant_name_taken';
+  end;
+
+  return json_build_object('ok', true, 'name', normalized_name);
+end;
+$$;
+
 create or replace function public.leave_room(target_room_id uuid, target_participant_id uuid, session_token text)
 returns json language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from participants where id = target_participant_id and room_id = target_room_id and session_token_hash = encode(extensions.digest(session_token, 'sha256'), 'hex')) then raise exception 'invalid_session'; end if;
+  update parts
+  set status = 'available', participant_id = null, reading_type = 'self', child_name = null, started_at = null
+  where room_id = target_room_id and participant_id = target_participant_id and status = 'reading';
   delete from participants where id = target_participant_id;
   return json_build_object('ok', true);
 end;
 $$;
 
-revoke all on public.rooms, public.participants, public.parts, public.messages from anon, authenticated;
+revoke all on public.rooms, public.participants, public.parts, public.messages from public, anon, authenticated;
+revoke all on function public.khatmah_hash(text) from public;
+revoke all on function public.create_room(text, text, text) from public;
+revoke all on function public.join_room(uuid, text, text) from public;
+revoke all on function public.claim_part(uuid, uuid, text, integer, text, text) from public;
+revoke all on function public.complete_part(uuid, uuid, text, integer) from public;
+revoke all on function public.delete_room(uuid, text) from public;
+revoke all on function public.send_message(uuid, uuid, text, text) from public;
+revoke all on function public.update_participant_name(uuid, uuid, text, text) from public;
+revoke all on function public.leave_room(uuid, uuid, text) from public;
 grant execute on function public.create_room(text, text, text) to anon, authenticated;
 grant execute on function public.join_room(uuid, text, text) to anon, authenticated;
-grant execute on function public.claim_part(uuid, uuid, text, integer) to anon, authenticated;
+grant execute on function public.claim_part(uuid, uuid, text, integer, text, text) to anon, authenticated;
 grant execute on function public.complete_part(uuid, uuid, text, integer) to anon, authenticated;
 grant execute on function public.delete_room(uuid, text) to anon, authenticated;
 grant execute on function public.send_message(uuid, uuid, text, text) to anon, authenticated;
+revoke all on function public.update_participant_name(uuid, uuid, text, text) from public;
+grant execute on function public.update_participant_name(uuid, uuid, text, text) to anon, authenticated;
 grant execute on function public.leave_room(uuid, uuid, text) to anon, authenticated;
 
 grant select (id, name, creator_name, status, created_at) on public.rooms to anon, authenticated;
 grant select (id, room_id, name, current_part, joined_at) on public.participants to anon, authenticated;
-grant select (id, room_id, part_number, status, participant_id, started_at, completed_at) on public.parts to anon, authenticated;
+grant select (id, room_id, part_number, status, participant_id, reading_type, child_name, started_at, completed_at) on public.parts to anon, authenticated;
 grant select (id, room_id, participant_id, message, created_at) on public.messages to anon, authenticated;
 
-alter publication supabase_realtime add table public.rooms, public.participants, public.parts, public.messages;
+do $realtime$
+declare
+  relation_name text;
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach relation_name in array array['rooms', 'participants', 'parts', 'messages'] loop
+      if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = relation_name
+      ) then
+        execute format('alter publication supabase_realtime add table public.%I', relation_name);
+      end if;
+    end loop;
+  end if;
+end
+$realtime$;
+
+create extension if not exists pg_cron;
+
+update public.rooms
+set completed_at = now()
+where status = 'completed'
+  and completed_at is null;
+
+create or replace function public.delete_expired_completed_rooms()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from public.rooms
+  where status = 'completed'
+    and completed_at is not null
+    and completed_at <= now() - interval '3 days';
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count;
+end;
+$$;
+
+revoke all on function public.delete_expired_completed_rooms() from public, anon, authenticated;
+
+do $job$
+declare
+  existing_job_id bigint;
+begin
+  select jobid into existing_job_id
+  from cron.job
+  where jobname = 'khetma-delete-completed-rooms';
+
+  if existing_job_id is not null then
+    perform cron.unschedule(existing_job_id);
+  end if;
+
+  perform cron.schedule(
+    'khetma-delete-completed-rooms',
+    '*/5 * * * *',
+    $command$select public.delete_expired_completed_rooms();$command$
+  );
+end
+$job$;
 
 notify pgrst, 'reload schema';

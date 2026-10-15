@@ -1,164 +1,78 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-
 import {
-  BrowserRouter,
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  useNavigate,
-  useParams,
+  BrowserRouter, Link, Navigate, Route, Routes,
+  useNavigate, useParams,
 } from 'react-router-dom'
-
 import { BookOpen } from 'lucide-react'
-
 import {
-  claimPart,
-  completePart,
-  createRoom,
-  deleteRoom,
-  getRoomState,
-  getSession,
-  joinRoom,
-  leaveRoom,
-  sendMessage,
-  subscribeToRoom,
+  claimPart, completePart, createRoom, deleteRoom,
+  getRoomState, getSession, joinRoom, leaveRoom,
+  sendMessage, subscribeToRoom, updateParticipantName,
 } from './lib/roomApi'
-
 import './App.css'
 
-const quranPdfPath = (partNumber) => {
-  return `/quran/juz${partNumber}.pdf?v=20260924-${partNumber}`
-}
+const quranPdfPath = (n) => `/quran/juz${n}.pdf?v=20260925-${n}`
+const getReservationName = (part) => part?.childName || part?.reader || ''
 
-const getNextAvailablePart = (parts) => {
-  const nextAvailable = parts.find(
-    (part) => part.status === 'available',
-  )
 
-  if (nextAvailable) return nextAvailable.number
-
-  const firstClaimableLocked = parts.find(
-    (part, index) =>
-      part.status === 'locked' &&
-      parts
-        .slice(0, index)
-        .every(
-          (previousPart) =>
-            previousPart.status !== 'locked',
-        ),
-  )
-
-  return firstClaimableLocked?.number || null
-}
-
+/* ═══════════ HomePage ═══════════ */
 function HomePage() {
   return (
-    <div className="page-shell">
+    <div className="page-shell home-shell">
       <main className="home-card">
-        <div
-          className="brand-mark"
-          aria-label="شعار خَتْمَة"
-        >
+        <div className="brand-mark" aria-label="logo">
           <img
-            src="/logo.png"
-            alt="شعار خَتْمَة"
-            onError={(event) => {
-              event.currentTarget.style.display = 'none'
-
-              if (event.currentTarget.nextElementSibling) {
-                event.currentTarget.nextElementSibling.style.display =
-                  'block'
-              }
+            src="/logo-khetma-emerald.png"
+            alt="شعار خَتْمَة: مصحف على حامل ضمن محراب أخضر وذهبي"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              if (e.currentTarget.nextElementSibling)
+                e.currentTarget.nextElementSibling.style.display = 'block'
             }}
           />
-
-          <BookOpen
-            className="logo-fallback"
-            size={34}
-            strokeWidth={1.8}
-            aria-hidden="true"
-          />
+          <BookOpen className="logo-fallback" size={34} strokeWidth={1.8} aria-hidden="true" />
         </div>
-
-        <p className="eyebrow">
-          اجعل لك في القرآن نصيبًا
-        </p>
-
+        <p className="eyebrow">اجعل لك نصيبًا من القرآن</p>
         <h1>خَتْمَة</h1>
-
         <p className="verse">
-          ﴿وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ
-          فَهَلْ مِن مُّدَّكِرٍ﴾
+          وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ فَهَلْ مِن مُّدَّكِرٍ
         </p>
-
         <div className="home-actions">
-          <Link
-            to="/create"
-            className="primary-button"
-          >
-            إنشاء ختمة
-          </Link>
-
-          <Link
-            to="/join"
-            className="secondary-button"
-          >
-            الانضمام للختمة الحالية
-          </Link>
+          <Link to="/create" className="primary-button">✨ إنشاء ختمة جديدة</Link>
+          <Link to="/join" className="secondary-button">الانضمام للختمة الحالية</Link>
         </div>
-
-        <p className="footer-text">
-          تصميم نور الدين
-        </p>
+        <p className="footer-text">تصميم نور الدين</p>
       </main>
     </div>
   )
 }
 
+
+/* ═══════════ CreateRoomPage ═══════════ */
 function CreateRoomPage() {
   const navigate = useNavigate()
-
   const [roomName, setRoomName] = useState('')
   const [participantName, setParticipantName] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const onSubmit = async (event) => {
-    event.preventDefault()
+  const onSubmit = async (e) => {
+    e.preventDefault()
     setError('')
-
-    if (roomName.trim().length < 2) {
-      setError('اسم الختمة يجب أن يكون حرفين على الأقل.')
+    if (roomName.trim().length < 2 || participantName.trim().length < 2) {
+      setError('أدخل اسم الختمة واسمك، على أن يتكون كل منهما من حرفين على الأقل.')
       return
     }
-
-    if (participantName.trim().length < 2) {
-      setError('اسمك يجب أن يكون حرفين على الأقل.')
+    if (participantName.trim().length > 80) {
+      setError('الاسم يجب ألا يتجاوز 80 حرفًا.')
       return
     }
-
-    if (password.length < 4) {
-      setError('كلمة المرور يجب أن تكون 4 أحرف على الأقل.')
-      return
-    }
-
     setLoading(true)
-
     try {
-      const result = await createRoom(
-        roomName.trim(),
-        participantName.trim(),
-        password,
-      )
-
+      const result = await createRoom(roomName.trim(), participantName.trim())
       navigate(`/room/${result.room_id}`)
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر إنشاء الختمة.',
-      )
+    } catch (err) {
+      setError(err?.message || 'تعذّر إنشاء الختمة.')
     } finally {
       setLoading(false)
     }
@@ -167,74 +81,33 @@ function CreateRoomPage() {
   return (
     <div className="page-shell small-shell">
       <div className="card-box">
-        <Link
-          to="/"
-          className="back-link"
-        >
-          ← الرئيسية
-        </Link>
-
-        <h1>إنشاء ختمة</h1>
-
-        <p className="muted-text">
-          أنشئ ختمة.
-        </p>
-
-        <form
-          onSubmit={onSubmit}
-          className="form-stack"
-        >
+        <Link to="/" className="back-link">الرئيسية</Link>
+        <h1>إنشاء ختمة ✨</h1>
+        <p className="muted-text">أنشئ ختمة جديدة.</p>
+        <form onSubmit={onSubmit} className="form-stack">
           <label>
             اسم الختمة
-
             <input
               value={roomName}
-              onChange={(event) =>
-                setRoomName(event.target.value)
-              }
-              placeholder="اكتب اسم الختمة"
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder=""
+              maxLength={120}
+              autoFocus
             />
           </label>
-
           <label>
             اسمك
-
             <input
               value={participantName}
-              onChange={(event) =>
-                setParticipantName(event.target.value)
-              }
+              onChange={(e) => setParticipantName(e.target.value)}
               placeholder="اكتب اسمك"
+              maxLength={80}
+              autoComplete="name"
             />
           </label>
-
-          <label>
-            كلمة مرور الختمة
-
-            <input
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="4 أحرف على الأقل"
-            />
-          </label>
-
-          {error && (
-            <div className="error-box">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={loading}
-          >
-            {loading
-              ? 'جاري الإنشاء...'
-              : 'ابدأ الختمة'}
+          {error && <div className="error-box">{error}</div>}
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? 'جاري الإنشاء...' : 'إنشاء الختمة'}
           </button>
         </form>
       </div>
@@ -242,51 +115,32 @@ function CreateRoomPage() {
   )
 }
 
-function JoinRoomPage({
-  initialRoomId = '',
-}) {
-  const navigate = useNavigate()
 
+/* ═══════════ JoinRoomPage ═══════════ */
+function JoinRoomPage({ initialRoomId = '' }) {
+  const navigate = useNavigate()
   const [roomId, setRoomId] = useState(initialRoomId)
   const [participantName, setParticipantName] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const onSubmit = async (event) => {
-    event.preventDefault()
+  const onSubmit = async (e) => {
+    e.preventDefault()
     setError('')
-
-    if (!roomId.trim()) {
-      setError('أدخل اسم الختمة.')
+    if (!roomId.trim() || participantName.trim().length < 2) {
+      setError('أدخل اسم الختمة واسمك (حرفين على الأقل).')
       return
     }
-
-    if (participantName.trim().length < 2) {
-      setError('اسمك يجب أن يكون حرفين على الأقل.')
+    if (participantName.trim().length > 80) {
+      setError('الاسم يجب ألا يتجاوز 80 حرفًا.')
       return
     }
-
-    if (!password) {
-      setError('اكتب كلمة المرور.')
-      return
-    }
-
     setLoading(true)
-
     try {
-      const result = await joinRoom(
-        roomId.trim(),
-        participantName.trim(),
-        password,
-      )
-
+      const result = await joinRoom(roomId.trim(), participantName.trim())
       navigate(`/room/${result.room_id}`)
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر الانضمام إلى الختمة.',
-      )
+    } catch (err) {
+      setError(err?.message || 'تعذّر الانضمام إلى الختمة.')
     } finally {
       setLoading(false)
     }
@@ -295,74 +149,32 @@ function JoinRoomPage({
   return (
     <div className="page-shell small-shell">
       <div className="card-box">
-        <Link
-          to="/"
-          className="back-link"
-        >
-          ← الرئيسية
-        </Link>
-
-        <h1>الانضمام للختمة الحالية</h1>
-
-        <p className="muted-text">
-          أدخل رابط الختمة أو معرفها، ثم اسمك وكلمة المرور.
-        </p>
-
-        <form
-          onSubmit={onSubmit}
-          className="form-stack"
-        >
+        <Link to="/" className="back-link">الرئيسية</Link>
+        <h1>الانضمام إلى ختمة قائمة 🔗</h1>
+        <p className="muted-text">أدخل اسم الختمة أو معرّفها، ثم اكتب اسمك.</p>
+        <form onSubmit={onSubmit} className="form-stack">
           <label>
-            رابط أو معرف الختمة
-
+            اسم الختمة أو معرّفها
             <input
               value={roomId}
-              onChange={(event) =>
-                setRoomId(event.target.value)
-              }
-              placeholder="اسم الجلسة أو رابطها"
+              onChange={(e) => setRoomId(e.target.value)}
+              placeholder="اسم الختمة أو معرّفها"
+              autoFocus
             />
           </label>
-
           <label>
             اسمك
-
             <input
               value={participantName}
-              onChange={(event) =>
-                setParticipantName(event.target.value)
-              }
+              onChange={(e) => setParticipantName(e.target.value)}
               placeholder="اكتب اسمك"
+              maxLength={80}
+              autoComplete="name"
             />
           </label>
-
-          <label>
-            كلمة المرور
-
-            <input
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="كلمة المرور"
-            />
-          </label>
-
-          {error && (
-            <div className="error-box">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={loading}
-          >
-            {loading
-              ? 'جاري الانضمام...'
-              : 'الانضمام'}
+          {error && <div className="error-box">{error}</div>}
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? 'جاري الانضمام...' : 'انضمام'}
           </button>
         </form>
       </div>
@@ -370,188 +182,212 @@ function JoinRoomPage({
   )
 }
 
+
+/* ═══════════ RoomRoute ═══════════ */
 function RoomRoute() {
   const { roomId } = useParams()
-
   const session = getSession(roomId)
-
-  if (!session) {
-    return (
-      <JoinRoomPage
-        initialRoomId={roomId}
-      />
-    )
-  }
-
-  return (
-    <RoomPage
-      roomId={roomId}
-      currentUser={session.name}
-    />
-  )
+  if (!session) return <JoinRoomPage initialRoomId={roomId} />
+  return <RoomPage roomId={roomId} session={session} />
 }
 
-function RoomPage({
-  roomId,
-  currentUser,
-}) {
+
+/* ═══════════ RoomPage ═══════════ */
+function RoomPage({ roomId, session }) {
   const navigate = useNavigate()
+  const messagesEndRef = useRef(null)
 
   const [room, setRoom] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [chatOpen, setChatOpen] = useState(true)
+  const [activeTab, setActiveTab] = useState('parts')
+  const [chatName, setChatName] = useState(session?.name || '')
+  const [confirmedName, setConfirmedName] = useState(session?.name || '')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
-
-  // نافذة دعاء ختم القرآن
+  const [savingName, setSavingName] = useState(false)
+  const [inviteCopied, setInviteCopied] = useState(false)
   const [showDua, setShowDua] = useState(false)
+  const [claimPartNumber, setClaimPartNumber] = useState(null)
+  const [claimReadingType, setClaimReadingType] = useState('self')
+  const [reservationName, setReservationName] = useState('')
+  const [claiming, setClaiming] = useState(false)
 
-  const session = getSession(roomId)
+  const isCreator = Boolean(session?.owner_token)
 
-  const isCreator = Boolean(
-    session?.owner_token,
-  )
+  const copyInvite = async () => {
+    const invite = [
+      `${window.location.origin}/room/${roomId}`,
+      `الختمة: ${room.name}`,
+    ].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(invite)
+      setInviteCopied(true)
+      setError('')
+    } catch {
+      setError('تعذّر نسخ الدعوة. يمكنك نسخ رابط الختمة يدويًا.')
+    }
+  }
 
   useEffect(() => {
     let active = true
-
-    const refreshRoom = async () => {
+    const refresh = async () => {
       try {
         const data = await getRoomState(roomId)
-
-        if (active) {
-          setRoom(data)
-        }
-      } catch (reason) {
-        if (active) {
-          setError(
-            reason?.message ||
-              'تعذر تحميل الختمة.',
-          )
-        }
-      } finally {
-        if (active) {
-          setLoading(false)
-        }
+        if (active) { setRoom(data); setLoading(false) }
+      } catch (err) {
+        if (active) { setError(err?.message || 'تعذّر تحميل الختمة.'); setLoading(false) }
       }
     }
-
-    refreshRoom()
-
-    const unsubscribe =
-      subscribeToRoom(roomId, () => {
-        refreshRoom()
+    refresh()
+    let unsub
+    Promise.resolve()
+      .then(() => subscribeToRoom(roomId, refresh))
+      .then((unsubscribe) => {
+        if (active) {
+          unsub = unsubscribe
+        } else if (typeof unsubscribe === 'function') {
+          unsubscribe()
+        }
       })
-
+      .catch((err) => {
+        if (active) {
+          setError(err?.message || 'تعذّر الاتصال بتحديثات الختمة.')
+          setLoading(false)
+        }
+      })
     return () => {
       active = false
-
-      if (typeof unsubscribe === 'function') {
-        unsubscribe()
-      }
+      if (typeof unsub === 'function') unsub()
     }
   }, [roomId])
 
+  useEffect(() => {
+    if (activeTab === 'chat' && messagesEndRef.current)
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+  }, [room?.messages?.length, activeTab])
+
+  const uniqueParticipants = useMemo(() => {
+    if (!room) return []
+    return Array.from(new Set([
+      ...room.participants.map((p) => p.name),
+      ...room.parts.map((p) => getReservationName(p)).filter(Boolean),
+    ]))
+  }, [room])
+
   const completion = room
-    ? Math.round(
-        (
-          room.parts.filter(
-            (part) =>
-              part.status === 'completed',
-          ).length / 30
-        ) * 100,
-      )
+    ? Math.round((room.parts.filter((p) => p.status === 'completed').length / 30) * 100)
     : 0
 
-  const nextAvailable = room
-    ? getNextAvailablePart(room.parts)
-    : 1
+  const openClaim = (part) => {
+    setError('')
+    setClaimPartNumber(part.number)
+    setClaimReadingType('self')
+    setReservationName(session?.name || '')
+  }
+
+  const closeClaim = () => {
+    if (claiming) return
+    setClaimPartNumber(null)
+    setReservationName('')
+    setError('')
+  }
+
+  const confirmClaim = async () => {
+    const name = claimReadingType === 'child'
+      ? reservationName.trim()
+      : session?.name?.trim() || ''
+    if (!name || name.length < 2 || name.length > 80) {
+      setError('اكتب اسم القارئ (حرفان على الأقل).')
+      return
+    }
+    if (!claimPartNumber) return
+    setClaiming(true)
+    setError('')
+    try {
+      await claimPart(
+        roomId,
+        claimPartNumber,
+        claimReadingType,
+        claimReadingType === 'child' ? name : null
+      )
+      setClaimPartNumber(null)
+      setReservationName('')
+      if (!chatName) setChatName(name)
+      navigate(`/room/${roomId}/part/${claimPartNumber}`)
+    } catch (err) {
+      setError(err?.message || 'تعذّر حجز الجزء.')
+    } finally {
+      setClaiming(false)
+    }
+  }
 
   const onLeave = async () => {
     if (!session) return
-
-    try {
-      await leaveRoom(
-        roomId,
-        session.participant_id,
-        session.session_token,
-      )
-
-      navigate('/')
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر مغادرة الختمة.',
-      )
-    }
+    try { await leaveRoom(roomId); navigate('/') }
+    catch (err) { setError(err?.message || 'تعذّر مغادرة الختمة.') }
   }
 
   const onDelete = async () => {
     if (!session?.owner_token) return
+    if (!window.confirm('هل تريد حذف الختمة نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.')) return
+    try { await deleteRoom(roomId); navigate('/') }
+    catch (err) { setError(err?.message || 'تعذّر حذف الختمة.') }
+  }
 
-    const confirmed = window.confirm(
-      'هل تريد حذف الختمة نهائيًا؟',
-    )
-
-    if (!confirmed) return
-
+  const onSaveName = async () => {
+    const name = chatName.trim()
+    if (name.length < 2 || name.length > 80) {
+      setError('يجب أن يتراوح الاسم بين حرفين و80 حرفًا.')
+      return
+    }
+    setSavingName(true)
+    setError('')
     try {
-      await deleteRoom(
-        roomId,
-        session.owner_token,
-      )
-
-      navigate('/')
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر حذف الختمة.',
-      )
+      await updateParticipantName(roomId, name)
+      setConfirmedName(name)
+      setRoom(await getRoomState(roomId))
+    } catch (err) {
+      setError(err?.message || 'تعذّر حفظ الاسم.')
+    } finally {
+      setSavingName(false)
     }
   }
 
-  const onSendMessage = async (event) => {
-    event.preventDefault()
-
+  const onSendMessage = async (e) => {
+    e.preventDefault()
     const text = message.trim()
-
     if (!text || !session) return
-
+    const name = chatName.trim()
+    if (name.length < 2 || name.length > 80) {
+      setError('اكتب اسمًا من حرفين إلى 80 حرفًا قبل إرسال رسالتك.')
+      return
+    }
     setSending(true)
     setError('')
-
     try {
-      await sendMessage(
-        roomId,
-        session.participant_id,
-        session.session_token,
-        text,
-      )
-
+      if (name !== getSession(roomId)?.name) {
+        await updateParticipantName(roomId, name)
+        setConfirmedName(name)
+      }
+      await sendMessage(roomId, session.participant_id, session.session_token, text, name)
       setMessage('')
-
-      const updatedRoom =
-        await getRoomState(roomId)
-
-      setRoom(updatedRoom)
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر إرسال الرسالة.',
-      )
+      const updated = await getRoomState(roomId)
+      setRoom(updated)
+    } catch (err) {
+      setError(err?.message || 'تعذّر إرسال الرسالة.')
     } finally {
       setSending(false)
     }
   }
 
+
   if (loading) {
     return (
       <div className="page-shell small-shell">
         <div className="card-box">
-          <div className="loading-state">
-            جاري تحميل الختمة...
-          </div>
+          <div className="loading-state">جاري تحميل الختمة...</div>
         </div>
       </div>
     )
@@ -562,19 +398,8 @@ function RoomPage({
       <div className="page-shell small-shell">
         <div className="card-box">
           <h2>تعذر تحميل الختمة</h2>
-
-          {error && (
-            <div className="error-box">
-              {error}
-            </div>
-          )}
-
-          <Link
-            to="/"
-            className="back-link"
-          >
-            العودة للرئيسية
-          </Link>
+          {error && <div className="error-box">{error}</div>}
+          <Link to="/" className="back-link">العودة للرئيسية</Link>
         </div>
       </div>
     )
@@ -584,362 +409,269 @@ function RoomPage({
     <div className="page-shell room-shell">
       <header className="room-header">
         <div>
-          <Link
-            to="/"
-            className="brand-small"
-          >
-            خَتْمَة
-          </Link>
-
+          <Link to="/" className="brand-small">خَتْمَة</Link>
           <h1>{room.name}</h1>
-
-          <p>
-            أهلاً {currentUser}
-          </p>
         </div>
-
         <div className="room-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() =>
-              setChatOpen(
-                (value) => !value,
-              )
-            }
-          >
-            {chatOpen
-              ? 'إخفاء الدردشة'
-              : 'إظهار الدردشة'}
+          <button type="button" className="secondary-button" onClick={copyInvite}>
+            {inviteCopied ? 'نُسخ رابط الدعوة ✓' : 'مشاركة رابط الختمة'}
           </button>
-
           {isCreator && (
-            <button
-              type="button"
-              className="danger-button"
-              onClick={onDelete}
-            >
-              حذف الختمة
-            </button>
+            <button type="button" className="danger-button" onClick={onDelete}>حذف</button>
           )}
-
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onLeave}
-          >
-            خروج
-          </button>
+          <button type="button" className="secondary-button" onClick={onLeave}>خروج</button>
         </div>
       </header>
 
-      {error && (
-        <div className="error-box">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-box" style={{ margin: '0 0 12px' }}>{error}</div>}
 
       <div className="progress-card">
         <div className="progress-top">
-          <strong>
-            تقدم الختمة
-          </strong>
-
-          <span>
-            {completion}%
-          </span>
+          <strong>تقدم الختمة</strong>
+          <span>{completion}%</span>
         </div>
-
         <div className="progress-track">
-          <div
-            className="progress-value"
-            style={{
-              width: `${completion}%`,
-            }}
-          />
+          <div className="progress-value" style={{ width: `${completion}%` }} />
         </div>
-
         {room.status === 'completed' && (
-          <div className="success-box">
-            تمت الختمة بنجاح 🎉
-          </div>
+          <div className="success-box">اكتملت الختمة بنجاح 🎉</div>
         )}
       </div>
 
-      <main
-        className={
-          chatOpen
-            ? 'room-layout with-chat'
-            : 'room-layout'
-        }
-      >
-        <section className="parts-section">
-          <div className="section-heading">
-            <div>
-              <h2>أجزاء القرآن</h2>
+      <div className="tabs-bar">
+        <button
+          type="button"
+          className={activeTab === 'parts' ? 'tab-btn tab-active' : 'tab-btn'}
+          onClick={() => setActiveTab('parts')}
+        >
+          📖 القراءة
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'chat' ? 'tab-btn tab-active' : 'tab-btn'}
+          onClick={() => setActiveTab('chat')}
+        >
+          💬 المحادثة
+          {room.messages.length > 0 && (
+            <span className="tab-badge">{room.messages.length}</span>
+          )}
+        </button>
+      </div>
 
-              <p>
-                ابدأ من الجزء المتاح، ويصبح الجزء التالي
-                متاحًا فور حجزه.
-              </p>
+      <div className="tab-content">
+
+
+        {activeTab === 'parts' && (
+          <section className="parts-section">
+            <div className="section-heading">
+              <h2>أجزاء القرآن الكريم</h2>
+              <p>اختر جزءًا متاحًا لبدء القراءة.</p>
             </div>
+            <div className="parts-grid">
+              {room.parts.map((part) => {
+                const isReading = part.status === 'reading'
+                const isCompleted = part.status === 'completed'
+                const partReservationName = getReservationName(part)
+                const isMyReservedPart =
+                  isReading && part.participantId === session?.participant_id
 
-            {nextAvailable && (
-              <span className="next-part">
-                الجزء التالي: {nextAvailable}
-              </span>
-            )}
-          </div>
-
-          <div className="parts-grid">
-            {room.parts.map((part) => {
-              const isAvailable =
-                part.number === nextAvailable &&
-                (
-                  part.status === 'available' ||
-                  part.status === 'locked'
-                )
-
-              const isReading =
-                part.status === 'reading'
-
-              const isCompleted =
-                part.status === 'completed'
-
-              const isLocked =
-                part.status === 'locked'
-
-              const stateClass =
-                isCompleted
-                  ? 'done'
-                  : isReading
-                    ? 'taken'
-                    : isAvailable
-                      ? 'available'
-                      : 'locked'
-
-              const disabled =
-                (
-                  part.status === 'locked' &&
-                  part.number !== nextAvailable
-                ) ||
-                (
-                  part.status === 'available' &&
-                  part.number !== nextAvailable
-                )
-
-              return (
-                <button
-                  key={part.number}
-                  type="button"
-                  className={`part-card ${stateClass}`}
-                  disabled={disabled}
-                  onClick={() =>
-                    navigate(
-                      `/room/${roomId}/part/${part.number}`,
-                    )
-                  }
-                >
-                  <span className="part-number">
-                    {part.number}
-                  </span>
-
-                  <span className="part-title">
-                    الجزء {part.number}
-                  </span>
-
-                  {isCompleted && (
-                    <>
-                      <span className="part-status">
-                        ✓ مكتمل
-                      </span>
-
-                      <span className="part-status">
-                        قرأه: {part.reader || 'مشارك'}
-                      </span>
-                    </>
-                  )}
-
-                  {isReading && (
-                    <span className="part-status">
-                      يقرأه{' '}
-                      {part.reader || 'مشارك'}
-                    </span>
-                  )}
-
-                  {isAvailable && (
-                    <span className="part-status">
-                      متاح للقراءة
-                    </span>
-                  )}
-
-                  {isLocked && (
-                    <span className="part-status">
-                      مقفل
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </section>
-
-        {chatOpen && (
-          <aside className="chat-panel">
-            <div className="chat-header">
-              <h2>الدردشة</h2>
-
-              <span>
-                {room.participants.length}{' '}
-                مشارك
-              </span>
-            </div>
-
-            <div className="participants-list">
-              {room.participants.map(
-                (participant) => (
-                  <span
-                    key={participant.id}
-                    className="participant-chip"
+                return (
+                  <div
+                    key={part.number}
+                    className={
+                      'part-card' +
+                      (isCompleted ? ' completed' : '') +
+                      (isReading ? ' reading' : '') +
+                      (!isReading && !isCompleted ? ' available' : '')
+                    }
                   >
-                    {participant.name}
-                  </span>
-                ),
-              )}
-            </div>
-
-            <div className="messages-list">
-              {room.messages.length === 0 ? (
-                <div className="empty-chat">
-                  لا توجد رسائل بعد.
-                </div>
-              ) : (
-                room.messages.map(
-                  (item) => (
-                    <div
-                      key={item.id}
-                      className={
-                        item.participant_id ===
-                        session?.participant_id
-                          ? 'message own-message'
-                          : 'message'
-                      }
+                    <button
+                      type="button"
+                      className="part-main-button"
+                      disabled={isReading || isCompleted}
+                      onClick={() => openClaim(part)}
                     >
-                      <strong>
-                        {item.sender_name ||
-                          'مشارك'}
-                      </strong>
-
-                      <p>
-                        {item.message}
-                      </p>
-                    </div>
-                  ),
+                      <span className="part-number">الجزء {part.number}</span>
+                      {isCompleted && (
+                        <>
+                          <span className="part-status part-done">مكتمل</span>
+                          <span className="part-reader">قرأه {partReservationName || 'مشارك'}</span>
+                        </>
+                      )}
+                      {isReading && (
+                        <span className="part-status part-reading">{partReservationName || 'مشارك'}</span>
+                      )}
+                      {!isReading && !isCompleted && (
+                        <span className="part-status part-available">متاح</span>
+                      )}
+                    </button>
+                    {isMyReservedPart && (
+                      <button
+                        type="button"
+                        className="part-go-button"
+                        onClick={() => navigate(`/room/${roomId}/part/${part.number}`)}
+                      >
+                        📖 الانتقال للجزء
+                      </button>
+                    )}
+                  </div>
                 )
-              )}
+              })}
+            </div>
+          </section>
+        )}
+
+
+        {activeTab === 'chat' && (
+          <aside className="chat-panel chat-panel-full">
+            <div className="participants-strip">
+              {uniqueParticipants.map((name) => (
+                <span key={name} className="participant-chip">{name}</span>
+              ))}
             </div>
 
-            {/* زر دعاء الختمة يظهر داخل الدردشة فقط بعد اكتمال الأجزاء الثلاثين */}
             {room.status === 'completed' && (
-              <div
-                style={{
-                  margin: '12px',
-                  padding: '14px',
-                  borderRadius: '16px',
-                  background:
-                    'rgba(25, 135, 84, 0.08)',
-                  border:
-                    '1px solid rgba(25, 135, 84, 0.22)',
-                  textAlign: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    marginBottom: '10px',
-                    fontWeight: 700,
-                    color: '#198754',
-                  }}
-                >
-                  🎉 اكتملت الختمة بالكامل
-                </div>
-
+              <div className="dua-banner">
+                <span>🎉 اكتملت الختمة بالكامل</span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowDua(true)
-                  }
-                  style={{
-                    width: '100%',
-                    border: '0',
-                    borderRadius: '13px',
-                    padding: '13px 16px',
-                    background: '#198754',
-                    color: '#fff',
-                    font: 'inherit',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
+                  className="primary-button"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowDua(true)}
                 >
                   🤲 قراءة دعاء الختمة
                 </button>
               </div>
             )}
 
-            <form
-              onSubmit={onSendMessage}
-              className="chat-form"
-            >
-              <input
-                value={message}
-                onChange={(event) =>
-                  setMessage(
-                    event.target.value,
+            <div className="messages-list">
+              {room.messages.length === 0 ? (
+                <div className="empty-chat">
+                  <span style={{ fontSize: 32 }}>💬</span>
+                  <p>لا توجد رسائل بعد، كن أول من يكتب!</p>
+                </div>
+              ) : (
+                room.messages.map((item) => {
+                  const isMine = item.participant_id === session?.participant_id
+                  return (
+                    <div key={item.id} className={isMine ? 'message own-message' : 'message'}>
+                      <span className="msg-sender">{item.sender_name || 'مشارك'}</span>
+                      <p>{item.message}</p>
+                    </div>
                   )
-                }
-                placeholder="اكتب رسالة..."
-                maxLength={1000}
-              />
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-              <button
-                type="submit"
-                className={
-                  message.trim()
-                    ? 'primary-button'
-                    : 'send-disabled'
-                }
-                disabled={
-                  !message.trim() ||
-                  sending
-                }
-              >
-                إرسال
-              </button>
-            </form>
+            <div className="chat-composer">
+              <div className="chat-name-row">
+                <span className="chat-name-label">اسم العرض:</span>
+                <input
+                  className="chat-name-input"
+                  value={chatName}
+                  onChange={(e) => setChatName(e.target.value)}
+                  placeholder="اكتب اسمك"
+                  maxLength={80}
+                />
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onSaveName}
+                  disabled={savingName || chatName.trim().length < 2}
+                >
+                  {savingName
+                    ? 'جاري الحفظ...'
+                    : chatName.trim() === confirmedName
+                        ? 'تم حفظ الاسم ✓'
+                        : 'حفظ الاسم'}
+                </button>
+              </div>
+              <form onSubmit={onSendMessage} className="chat-form">
+                <input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="اكتب رسالتك هنا..."
+                  maxLength={1000}
+                />
+                <button
+                  type="submit"
+                  className={message.trim() ? 'primary-button' : 'send-disabled'}
+                  disabled={!message.trim() || sending}
+                >
+                  إرسال
+                </button>
+              </form>
+            </div>
           </aside>
         )}
-      </main>
+      </div>
 
-      {/* نافذة دعاء ختم القرآن */}
+
+      {claimPartNumber && (
+        <div className="modal-overlay" onClick={closeClaim}>
+          <div className="confirm-modal claim-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="claim-modal-icon">📖</div>
+            <h2>حجز الجزء للقراءة</h2>
+            <p className="claim-modal-sub">الجزء {claimPartNumber}</p>
+            <label className="claim-modal-label">
+              نوع القراءة
+              <select
+                value={claimReadingType}
+                onChange={(e) => {
+                  setClaimReadingType(e.target.value)
+                  setReservationName('')
+                }}
+              >
+                <option value="self">القراءة لوحدي</option>
+                <option value="child">حجز للطفل</option>
+              </select>
+            </label>
+            {claimReadingType === 'child' ? (
+              <label className="claim-modal-label">
+                اسم الطفل القارئ
+                <input
+                  value={reservationName}
+                  onChange={(e) => setReservationName(e.target.value)}
+                  placeholder="اكتب اسم الطفل"
+                  maxLength={80}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmClaim()
+                    if (e.key === 'Escape') closeClaim()
+                  }}
+                />
+              </label>
+            ) : (
+              <p className="muted-text">سيُحجز الجزء باسمك: {session?.name}</p>
+            )}
+            {error && <div className="error-box" style={{ marginBottom: 12 }}>{error}</div>}
+            <div className="confirm-actions">
+              <button type="button" className="primary-button" onClick={confirmClaim} disabled={claiming}>
+                {claiming ? 'جاري الحجز...' : 'بدء'}
+              </button>
+              <button type="button" className="secondary-button" onClick={closeClaim} disabled={claiming}>
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {showDua && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dua-title"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setShowDua(false)}>
           <div
             className="dua-modal"
+            onClick={(e) => e.stopPropagation()}
             style={{
-              width:
-                'min(760px, calc(100vw - 28px))',
-              maxHeight:
-                'min(86vh, 820px)',
+              width: 'min(700px, calc(100vw - 28px))',
+              maxHeight: 'min(86vh, 820px)',
               overflow: 'hidden',
               padding: '24px',
               borderRadius: '22px',
               background: '#fff',
-              boxShadow:
-                '0 20px 60px rgba(0, 0, 0, 0.22)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
               direction: 'rtl',
               textAlign: 'right',
               display: 'flex',
@@ -947,83 +679,18 @@ function RoomPage({
               gap: '16px',
             }}
           >
-            <h2
-              id="dua-title"
-              style={{
-                margin: 0,
-                textAlign: 'center',
-              }}
-            >
-              🤲 دعاء ختم القرآن
-            </h2>
-
-            <div
-              style={{
-                overflowY: 'auto',
-                maxHeight: '62vh',
-                padding: '4px 8px 4px 4px',
-                lineHeight: 2.15,
-                fontSize: '1.05rem',
-                color: '#26332d',
-              }}
-            >
-              <p>
-                اللَّهُمَّ ارْحَمْنِي بالقُرْءَانِ وَاجْعَلهُ لِي إِمَاماً وَنُوراً وَهُدًى وَرَحْمَةً ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ ذَكِّرْنِي مِنْهُ مَانَسِيتُ وَعَلِّمْنِي مِنْهُ مَاجَهِلْتُ وَارْزُقْنِي تِلاَوَتَهُ آنَاءَ اللَّيْلِ وَأَطْرَافَ النَّهَارِ وَاجْعَلْهُ لِي حُجَّةً يَارَبَّ العَالَمِينَ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ أَصْلِحْ لِي دِينِي الَّذِي هُوَ عِصْمَةُ أَمْرِي وَأَصْلِحْ لِي دُنْيَايَ الَّتِي فِيهَا مَعَاشِي وَأَصْلِحْ لِي آخِرَتِي الَّتِي فِيهَا مَعَادِي وَاجْعَلِ الحَيَاةَ زِيَادَةً لِي فِي كُلِّ خَيْرٍ وَاجْعَلِ المَوْتَ رَاحَةً لِي مِنْ كُلِّ شَرٍّ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ اجْعَلْ خَيْرَ عُمْرِي آخِرَهُ وَخَيْرَ عَمَلِي خَوَاتِمَهُ وَخَيْرَ أَيَّامِي يَوْمَ أَلْقَاكَ فِيهِ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ إِنِّي أَسْأَلُكَ عِيشَةً هَنِيَّةً وَمِيتَةً سَوِيَّةً وَمَرَدًّا غَيْرَ مُخْزٍ وَلاَ فَاضِحٍ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَ المَسْأَلةِ وَخَيْرَ الدُّعَاءِ وَخَيْرَ النَّجَاحِ وَخَيْرَ العِلْمِ وَخَيْرَ العَمَلِ وَخَيْرَ الثَّوَابِ وَخَيْرَ الحَيَاةِ وَخيْرَ المَمَاتِ وَثَبِّتْنِي وَثَقِّلْ مَوَازِينِي وَحَقِّقْ إِيمَانِي وَارْفَعْ دَرَجَتِي وَتَقَبَّلْ صَلاَتِي وَاغْفِرْ خَطِيئَاتِي وَأَسْأَلُكَ العُلَا مِنَ الجَنَّةِ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ إِنِّي أَسْأَلُكَ مُوجِبَاتِ رَحْمَتِكَ وَعَزَائِمَ مَغْفِرَتِكَ وَالسَّلاَمَةَ مِنْ كُلِّ إِثْمٍ وَالغَنِيمَةَ مِنْ كُلِّ بِرٍّ وَالفَوْزَ بِالجَنَّةِ وَالنَّجَاةَ مِنَ النَّارِ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ أَحْسِنْ عَاقِبَتَنَا فِي الأُمُورِ كُلِّهَا وَأجِرْنَا مِنْ خِزْيِ الدُّنْيَا وَعَذَابِ الآخِرَةِ ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ اقْسِمْ لَنَا مِنْ خَشْيَتِكَ مَاتَحُولُ بِهِ بَيْنَنَا وَبَيْنَ مَعْصِيَتِكَ وَمِنْ طَاعَتِكَ مَاتُبَلِّغُنَا بِهَا جَنَّتَكَ وَمِنَ اليَقِينِ مَاتُهَوِّنُ بِهِ عَلَيْنَا مَصَائِبَ الدُّنْيَا وَمَتِّعْنَا بِأَسْمَاعِنَا وَأَبْصَارِنَا وَقُوَّتِنَا مَاأَحْيَيْتَنَا وَاجْعَلْهُ الوَارِثَ مِنَّا وَاجْعَلْ ثَأْرَنَا عَلَى مَنْ ظَلَمَنَا وَانْصُرْنَا عَلَى مَنْ عَادَانَا وَلاَ تجْعَلْ مُصِيبَتَنَا فِي دِينِنَا وَلاَ تَجْعَلِ الدُّنْيَا أَكْبَرَ هَمِّنَا وَلَا مَبْلَغَ عِلْمِنَا وَلاَ تُسَلِّطْ عَلَيْنَا مَنْ لَا يَرْحَمُنَا ۞
-              </p>
-
-              <p>
-                اللَّهُمَّ لَا تَدَعْ لَنَا ذَنْبًا إِلَّا غَفَرْتَهُ وَلَا هَمَّا إِلَّا فَرَّجْتَهُ وَلَا دَيْنًا إِلَّا قَضَيْتَهُ وَلَا حَاجَةً مِنْ حَوَائِجِ الدُّنْيَا وَالآخِرَةِ إِلَّا قَضَيْتَهَا يَاأَرْحَمَ الرَّاحِمِينَ ۞
-              </p>
-
-              <p>
-                رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ وَصَلَّى اللهُ عَلَى سَيِّدِنَا وَنَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَأَصْحَابِهِ الأَخْيَارِ وَسَلَّمَ تَسْلِيمًا كَثِيراً.
-              </p>
+            <h2 style={{ margin: 0, textAlign: 'center' }}>🤲 دعاء ختم القرآن</h2>
+            <div style={{ overflowY: 'auto', maxHeight: '62vh', lineHeight: 2.15, fontSize: '1.05rem', color: '#26332d', padding: '4px 8px' }}>
+              <p>اللهم ارحمني بالقرآن واجعله لي إماما ونورا وهدى ورحمة</p>
+              <p>اللهم ذكرني منه ما نسيت وعلمني منه ما جهلت وارزقني تلاوته آناء الليل وأطراف النهار واجعله لي حجة يا رب العالمين</p>
+              <p>اللهم أصلح لي ديني الذي هو عصمة أمري وأصلح لي دنياي التي فيها معاشي وأصلح لي آخرتي التي فيها معادي واجعل الحياة زيادة لي في كل خير واجعل الموت راحة لي من كل شر</p>
+              <p>اللهم اجعل خير عمري آخره وخير عملي خواتمه وخير أيامي يوم ألقاك فيه</p>
+              <p>اللهم إني أسألك موجبات رحمتك وعزائم مغفرتك والسلامة من كل إثم والغنيمة من كل بر والفوز بالجنة والنجاة من النار</p>
+              <p>اللهم لا تدع لنا ذنبا إلا غفرته ولا هما إلا فرجته ولا دينا إلا قضيته ولا حاجة من حوائج الدنيا والآخرة إلا قضيتها يا أرحم الراحمين</p>
+              <p>ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار وصلى الله على سيدنا محمد وعلى آله وصحبه وسلم تسليما كثيرا.</p>
             </div>
-
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() =>
-                setShowDua(false)
-              }
-              style={{
-                width: '100%',
-                flexShrink: 0,
-              }}
-            >
-              تم
+            <button type="button" className="primary-button" onClick={() => setShowDua(false)} style={{ width: '100%', flexShrink: 0 }}>
+              تم 🤲
             </button>
           </div>
         </div>
@@ -1032,328 +699,123 @@ function RoomPage({
   )
 }
 
+
+/* ═══════════ PartRoute ═══════════ */
 function PartRoute() {
   const { roomId } = useParams()
-
   const session = getSession(roomId)
-
-  if (!session) {
-    return (
-      <Navigate
-        to={`/room/${roomId}`}
-        replace
-      />
-    )
-  }
-
-  return (
-    <PartPage
-      currentUser={session.name}
-    />
-  )
+  if (!session) return <Navigate to={`/room/${roomId}`} replace />
+  return <PartPage session={session} />
 }
 
-function PartPage({
-  currentUser,
-}) {
+/* ═══════════ PartPage ═══════════ */
+function PartPage({ session }) {
   const { roomId, partNumber } = useParams()
-
   const navigate = useNavigate()
 
-  const [seconds, setSeconds] =
-    useState(0)
+  const [room, setRoom] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [finishing, setFinishing] = useState(false)
+  const [claimOpen, setClaimOpen] = useState(false)
+  const [claimReadingType, setClaimReadingType] = useState('self')
+  const [reservationName, setReservationName] = useState('')
+  const [claiming, setClaiming] = useState(false)
 
-  const [isRunning, setIsRunning] =
-    useState(false)
-
-  const [isReaderOpen, setIsReaderOpen] =
-    useState(false)
-
-  const [confirmPartOpen, setConfirmPartOpen] =
-    useState(false)
-
-  const [isPdfOpen, setIsPdfOpen] =
-    useState(false)
-
-  const pdfOpenRef =
-    useRef(false)
-
-  const [pdfPages, setPdfPages] =
-    useState(false)
-
-  const [room, setRoom] =
-    useState(null)
-
-  const [error, setError] =
-    useState('')
-
-  const [finishing, setFinishing] =
-    useState(false)
-
-  const numericPartNumber =
-    Number(partNumber)
-
-  useEffect(() => {
-    pdfOpenRef.current = isPdfOpen
-  }, [isPdfOpen])
+  const numericPartNumber = Number(partNumber)
+  const currentUser = session?.name || ''
 
   useEffect(() => {
     let cancelled = false
-
     getRoomState(roomId)
-      .then(async (data) => {
-        if (cancelled) return
-
-        const targetPart =
-          data.parts.find(
-            (item) =>
-              item.number ===
-              numericPartNumber,
-          )
-
-        const nextPart =
-          getNextAvailablePart(data.parts)
-
-        if (
-          targetPart?.status === 'reading' &&
-          targetPart.reader === currentUser
-        ) {
-          setRoom(data)
-          setIsReaderOpen(true)
-          return
-        }
-
-        if (
-          (
-            targetPart?.status === 'available' ||
-            targetPart?.status === 'locked'
-          ) &&
-          targetPart.number === nextPart
-        ) {
-          setRoom(data)
-          setConfirmPartOpen(true)
-          return
-        }
-
-        if (!cancelled) {
-          setRoom(data)
-        }
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setError(
-            reason?.message ||
-              'تعذر تحميل الجزء.',
-          )
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    roomId,
-    numericPartNumber,
-    currentUser,
-  ])
-
-  useEffect(() => {
-    if (!isReaderOpen) {
-      return undefined
-    }
-
-    window.history.pushState(
-      {
-        readerModal: true,
-        pdfOpen: false,
-      },
-      '',
-      window.location.href,
-    )
-
-    const handleBack = () => {
-      if (pdfOpenRef.current) {
-        setIsPdfOpen(false)
-        return
-      }
-
-      setIsReaderOpen(false)
-    }
-
-    window.addEventListener(
-      'popstate',
-      handleBack,
-    )
-
-    return () =>
-      window.removeEventListener(
-        'popstate',
-        handleBack,
-      )
-  }, [isReaderOpen])
-
-  useEffect(() => {
-    if (!isRunning) {
-      return undefined
-    }
-
-    const timer =
-      window.setInterval(() => {
-        setSeconds(
-          (value) => value + 1,
-        )
-      }, 1000)
-
-    return () =>
-      window.clearInterval(timer)
-  }, [isRunning])
+      .then((data) => { if (!cancelled) setRoom(data) })
+      .catch((err) => { if (!cancelled)       setError(err?.message || 'تعذّر تحميل الجزء.') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [roomId])
 
   const part = useMemo(
-    () =>
-      room?.parts.find(
-        (item) =>
-          item.number ===
-          numericPartNumber,
-      ),
-    [room, numericPartNumber],
+    () => room?.parts.find((p) => p.number === numericPartNumber),
+    [room, numericPartNumber]
   )
 
-  const isCompleted =
-    part?.status === 'completed'
+  const isCompleted = part?.status === 'completed'
+  const isReading = part?.status === 'reading'
+  const isMyPart = isReading && part?.participantId === session?.participant_id
+  const partReservationName = getReservationName(part)
 
-  const isReading =
-    part?.status === 'reading'
+  const openQuran = () => {
+    if (!part) return
+    window.open(quranPdfPath(part.number), '_blank', 'noopener,noreferrer')
+  }
 
-  const isMyPart =
-    isReading &&
-    part?.reader === currentUser
+  const openClaim = () => {
+    setError('')
+    setClaimReadingType('self')
+    setReservationName(currentUser)
+    setClaimOpen(true)
+  }
 
-  const formatTime = (
-    totalSeconds,
-  ) => {
-    const hours =
-      Math.floor(
-        totalSeconds / 3600,
+  const confirmClaim = async () => {
+    const name = claimReadingType === 'child'
+      ? reservationName.trim()
+      : currentUser.trim()
+    if (!name || name.length < 2 || name.length > 80) {
+      setError('اكتب اسم الشخص الذي سيقرأ الجزء.')
+      return
+    }
+    setClaiming(true)
+    setError('')
+    try {
+      await claimPart(
+        roomId,
+        numericPartNumber,
+        claimReadingType,
+        claimReadingType === 'child' ? name : null
       )
-
-    const minutes =
-      Math.floor(
-        (totalSeconds % 3600) /
-          60,
-      )
-
-    const secs =
-      totalSeconds % 60
-
-    return [
-      hours > 0
-        ? String(hours).padStart(
-            2,
-            '0',
-          )
-        : null,
-
-      String(minutes).padStart(
-        2,
-        '0',
-      ),
-
-      String(secs).padStart(
-        2,
-        '0',
-      ),
-    ]
-      .filter(Boolean)
-      .join(':')
+      const updated = await getRoomState(roomId)
+      setRoom(updated)
+      setClaimOpen(false)
+      setReservationName('')
+    } catch (err) {
+      setError(err?.message || 'تعذّر حجز الجزء.')
+    } finally {
+      setClaiming(false)
+    }
   }
 
   const onFinish = async () => {
-    if (!part || !isMyPart) {
-      return
-    }
-
+    if (!part || !isMyPart) return
     setError('')
-    setIsRunning(false)
     setFinishing(true)
-
     try {
-      await completePart(
-        roomId,
-        part.number,
-      )
-
-      const updatedRoom =
-        await getRoomState(roomId)
-
-      setRoom(updatedRoom)
-
-      // بعد إكمال أي جزء، بما فيه الجزء 30،
-      // نعود إلى غرفة الختمة.
-      // عند اكتمال الجزء 30 سيظهر زر دعاء الختمة داخل الدردشة.
-      setIsReaderOpen(false)
-
-      navigate(
-        `/room/${roomId}`,
-        { replace: true },
-      )
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر إنهاء الجزء.',
-      )
+      await completePart(roomId, part.number)
+      const updated = await getRoomState(roomId)
+      setRoom(updated)
+    } catch (err) {
+      setError(err?.message || 'تعذّر تسجيل إكمال الجزء.')
     } finally {
       setFinishing(false)
     }
   }
 
-  const confirmReadPart = async () => {
-    setConfirmPartOpen(false)
-    setError('')
-
-    try {
-      await claimPart(
-        roomId,
-        numericPartNumber,
-      )
-
-      const claimedRoom =
-        await getRoomState(roomId)
-
-      setRoom(claimedRoom)
-      setIsReaderOpen(true)
-    } catch (reason) {
-      setError(
-        reason?.message ||
-          'تعذر بدء قراءة الجزء. أعد المحاولة.',
-      )
-    }
+  if (loading) {
+    return (
+      <div className="page-shell small-shell">
+        <div className="card-box">
+          <div className="loading-state">جاري تحميل الجزء...</div>
+        </div>
+      </div>
+    )
   }
-
-  const resetTimer = () => {
-    setIsRunning(false)
-    setSeconds(0)
-  }
-
-  const onPdfLoad = () =>
-    setPdfPages(true)
-
-  const canFinish = Boolean(
-    isMyPart && pdfPages,
-  )
 
   if (!room) {
     return (
       <div className="page-shell small-shell">
         <div className="card-box">
-          <div className="loading-state">
-            جاري تحميل الجزء...
-          </div>
-
-          {error && (
-            <div className="error-box">
-              {error}
-            </div>
-          )}
+          <h2>تعذر تحميل الجزء</h2>
+          {error && <div className="error-box">{error}</div>}
+          <Link to={`/room/${roomId}`} className="back-link">العودة إلى الختمة</Link>
         </div>
       </div>
     )
@@ -1363,310 +825,144 @@ function PartPage({
     return (
       <div className="page-shell small-shell">
         <div className="card-box">
-          <h2>
-            الجزء غير موجود
-          </h2>
-
-          <p>
-            تعذر العثور على الجزء رقم{' '}
-            {numericPartNumber}.
-          </p>
-
-          <Link
-            to={`/room/${roomId}`}
-            className="back-link"
-          >
-            العودة إلى الجلسة
-          </Link>
+          <h2>الجزء غير موجود</h2>
+          <p>لم نعثر على الجزء رقم {numericPartNumber}.</p>
+          <Link to={`/room/${roomId}`} className="back-link">العودة الى الختمة</Link>
         </div>
       </div>
     )
   }
 
+
   return (
     <div className="page-shell reader-shell">
       <header className="reader-header">
-        <button
-          type="button"
-          className="back-button"
-          onClick={() =>
-            navigate(
-              `/room/${roomId}`,
-            )
-          }
-        >
-          ← العودة
+        <button type="button" className="back-button" onClick={() => navigate(`/room/${roomId}`)}>
+          العودة
         </button>
-
         <div className="reader-title">
           <span>خَتْمَة</span>
-
-          <h1>
-            الجزء {part.number}
-          </h1>
+          <h1>الجزء {part.number}</h1>
         </div>
       </header>
 
-      {error && (
-        <div className="error-box reader-error">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-box reader-error">{error}</div>}
 
-      {isMyPart && !isReaderOpen && (
-        <section className="reader-start-card">
-          <h2>
-            الجزء {part.number} جاهز للقراءة
-          </h2>
-
-          <p>
-            اضغط بدء القراءة لفتح المصحف وتشغيل المؤقت.
-          </p>
-
+      {part.status === 'available' && (
+        <section className="reader-start-card" style={{ textAlign: 'center', padding: '32px 24px' }}>
+          <div className="reader-icon-circle">📖</div>
+          <h2>الجزء {part.number}</h2>
+          <p style={{ marginBottom: 24, color: '#66736c' }}>هذا الجزء متاح للقراءة.</p>
           <button
             type="button"
             className="primary-button"
-            onClick={() => {
-              setIsReaderOpen(true)
-              setIsRunning(true)
-            }}
+            onClick={openClaim}
+            style={{ width: '100%', maxWidth: 420, minHeight: 58, fontSize: '1.08rem', fontWeight: 800 }}
           >
-            بدء القراءة
+            📖 بدء للقراءة
           </button>
         </section>
       )}
 
-      {!isMyPart && !isReaderOpen && (
-        <section className="reader-start-card">
-          {isCompleted ? (
-            <>
-              <h2>
-                تم إكمال الجزء
-              </h2>
-
-              <p>
-                قرأه {part.reader || 'مشارك'}
-              </p>
-            </>
-          ) : (
-            <>
-              <h2>
-                الجزء قيد القراءة
-              </h2>
-
-              <p>
-                يقرأه حاليًا{' '}
-                {part.reader || 'مشارك آخر'}
-              </p>
-            </>
-          )}
+      {isMyPart && (
+        <section className="reader-start-card" style={{ padding: '28px 24px' }}>
+          <div className="reader-icon-circle">📖</div>
+          <h2>الجزء {part.number}</h2>
+          <p style={{ marginBottom: 20 }}>
+            محجوز لـ <strong>{partReservationName || currentUser}</strong>
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420, margin: '0 auto' }}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={openQuran}
+              style={{ minHeight: 52, fontSize: '1.02rem' }}
+            >
+              📖 فتح المصحف للقراءة
+            </button>
+            <button
+              type="button"
+              className="success-button"
+              onClick={onFinish}
+              disabled={finishing}
+              style={{ minHeight: 54, fontSize: '1.05rem', fontWeight: 800 }}
+            >
+              {finishing ? 'جارٍ حفظ التقدّم...' : 'أكملت قراءة الجزء'}
+            </button>
+          </div>
         </section>
       )}
 
-      {confirmPartOpen && part && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h2>
-              هل تريد قراءة الجزء {part.number}؟
-            </h2>
+      {isReading && !isMyPart && (
+        <section className="reader-start-card" style={{ textAlign: 'center', padding: '32px 24px' }}>
+          <div className="reader-icon-circle">📖</div>
+          <h2>الجزء قيد القراءة</h2>
+          <p>محجوز لـ <strong>{partReservationName || 'مشارك آخر'}</strong></p>
+        </section>
+      )}
 
-            <p>
-              سيتم حجز هذا الجزء باسمك ويمكنك قراءته الآن.
-            </p>
+      {isCompleted && (
+        <section className="reader-start-card" style={{ textAlign: 'center', padding: '32px 24px' }}>
+          <div style={{ fontSize: 42, marginBottom: 12 }}>✓</div>
+          <h2>تم إكمال الجزء</h2>
+          <p>قرأه <strong>{partReservationName || 'مشارك'}</strong></p>
+        </section>
+      )}
 
-            <div className="confirm-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={confirmReadPart}
+      {claimOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => { if (!claiming) { setClaimOpen(false); setReservationName('') } }}
+        >
+          <div className="confirm-modal claim-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="claim-modal-icon">📖</div>
+            <h2>حجز الجزء للقراءة</h2>
+            <p className="claim-modal-sub">الجزء {part.number}</p>
+            <label className="claim-modal-label">
+              نوع القراءة
+              <select
+                value={claimReadingType}
+                onChange={(e) => {
+                  setClaimReadingType(e.target.value)
+                  setReservationName('')
+                }}
               >
-                نعم
+                <option value="self">القراءة لوحدي</option>
+                <option value="child">حجز للطفل</option>
+              </select>
+            </label>
+            {claimReadingType === 'child' ? (
+              <label className="claim-modal-label">
+                اسم الطفل القارئ
+                <input
+                  value={reservationName}
+                  onChange={(e) => setReservationName(e.target.value)}
+                  placeholder="اكتب اسم الطفل"
+                  maxLength={80}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmClaim()
+                    if (e.key === 'Escape') { setClaimOpen(false); setReservationName('') }
+                  }}
+                />
+              </label>
+            ) : (
+              <p className="muted-text">سيُحجز الجزء باسمك: {currentUser}</p>
+            )}
+            {error && <div className="error-box" style={{ marginBottom: 12 }}>{error}</div>}
+            <div className="confirm-actions">
+              <button type="button" className="primary-button" onClick={confirmClaim} disabled={claiming}>
+                {claiming ? 'جاري الحجز...' : 'بدء'}
               </button>
-
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() =>
-                  navigate(
-                    `/room/${roomId}`,
-                  )
-                }
+                onClick={() => { setClaimOpen(false); setReservationName('') }}
+                disabled={claiming}
               >
-                لا
+                إلغاء
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {isReaderOpen && (
-        <div className="modal-overlay reader-modal-overlay">
-          <div className="reader-modal">
-            <div className="reader-modal-top">
-              <div className="reader-timer">
-                {formatTime(seconds)}
-              </div>
-
-              {isMyPart && !isPdfOpen && (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => {
-                    setIsPdfOpen(true)
-                    setIsRunning(true)
-                  }}
-                >
-                  بدء القراءة
-                </button>
-              )}
-
-              {isPdfOpen && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    setIsPdfOpen(false)
-                  }
-                >
-                  العودة
-                </button>
-              )}
-            </div>
-
-            <main className="reader-content">
-              {isPdfOpen && (
-                <section className="reader-pdf-card reader-file-card">
-                  <div className="pdf-viewer">
-                    <iframe
-                      title={`الجزء ${part.number}`}
-                      src={quranPdfPath(part.number)}
-                      loading="lazy"
-                      onLoad={onPdfLoad}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {!isPdfOpen && (
-                <aside className="reader-side-panel">
-                  <div className="card-box">
-                    <h2>
-                      الجزء {part.number}
-                    </h2>
-
-                    {isCompleted && (
-                      <div className="success-box">
-                        ✓ تم إكمال هذا الجزء
-                        {part.reader
-                          ? ` بواسطة ${part.reader}`
-                          : ''}
-                      </div>
-                    )}
-
-                    {isReading &&
-                      !isMyPart && (
-                        <div className="warning-box">
-                          هذا الجزء يقرأه حاليًا:
-                          <strong>
-                            {part.reader ||
-                              'مشارك آخر'}
-                          </strong>
-                        </div>
-                      )}
-
-                    {!isCompleted &&
-                      !isReading && (
-                        <div className="info-box">
-                          جاري فتح الجزء وبدء المؤقت...
-                        </div>
-                      )}
-
-                    {isMyPart && (
-                      <div className="reading-box">
-                        أنت تقرأ هذا الجزء الآن.
-                      </div>
-                    )}
-
-                    <div className="timer-box">
-                      <div className="timer-value">
-                        {formatTime(seconds)}
-                      </div>
-
-                      <div className="timer-actions">
-                        {isMyPart && (
-                          <>
-                            <button
-                              type="button"
-                              className="primary-button"
-                              onClick={() => {
-                                setIsPdfOpen(true)
-                                setIsRunning(true)
-                              }}
-                            >
-                              بدء القراءة
-                            </button>
-
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              onClick={
-                                resetTimer
-                              }
-                            >
-                              إعادة ضبط المؤقت
-                            </button>
-                          </>
-                        )}
-
-                        {!isCompleted && (
-                          <button
-                            type="button"
-                            className={
-                              canFinish
-                                ? 'success-button finish-button-ready'
-                                : 'success-button finish-button'
-                            }
-                            onClick={onFinish}
-                            disabled={
-                              !canFinish ||
-                              finishing
-                            }
-                          >
-                            {finishing
-                              ? 'جاري إنهاء الجزء...'
-                              : 'تم قراءة الجزء'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="reader-note">
-                      <strong>
-                        تنبيه:
-                      </strong>
-
-                      <p>
-                        لن يتم إنهاء الجزء
-                        تلقائيًا عند الوصول
-                        إلى آخر صفحة. اضغط
-                        «تم قراءة الجزء» بعد
-                        الانتهاء فعليًا.
-                      </p>
-                    </div>
-                  </div>
-                </aside>
-              )}
-            </main>
-
-            <button
-              type="button"
-              className="secondary-button reader-modal-close"
-              onClick={() =>
-                setIsReaderOpen(false)
-              }
-            >
-              إغلاق نافذة القراءة
-            </button>
           </div>
         </div>
       )}
@@ -1674,47 +970,17 @@ function PartPage({
   )
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={<HomePage />}
-        />
-
-        <Route
-          path="/create"
-          element={<CreateRoomPage />}
-        />
-
-        <Route
-          path="/join"
-          element={<JoinRoomPage />}
-        />
-
-        <Route
-          path="/room/:roomId"
-          element={<RoomRoute />}
-        />
-
-        <Route
-          path="/room/:roomId/part/:partNumber"
-          element={<PartRoute />}
-        />
-
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to="/"
-              replace
-            />
-          }
-        />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/create" element={<CreateRoomPage />} />
+        <Route path="/join" element={<JoinRoomPage />} />
+        <Route path="/room/:roomId" element={<RoomRoute />} />
+        <Route path="/room/:roomId/part/:partNumber" element={<PartRoute />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )
 }
-
-export default App

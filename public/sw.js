@@ -1,8 +1,8 @@
-const CACHE_NAME = 'khetma-shell-v3'
+const CACHE_NAME = 'khetma-shell-v4'
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
-  '/logo.png',
+  '/logo-khetma-emerald.png',
 ]
 
 self.addEventListener('install', (event) => {

@@ -1,9 +1,15 @@
 -- Run this file once in the same Supabase project used by VITE_SUPABASE_URL.
--- It deletes all current sessions now and enables automatic cleanup after completion.
+-- WARNING: This legacy reset script deletes every current room at the end.
+-- Do not run it to change the retention period; use set-completed-room-retention-3-days.sql.
 
 create extension if not exists pg_cron;
 
 alter table public.rooms add column if not exists completed_at timestamptz;
+
+update public.rooms
+set completed_at = now()
+where status = 'completed'
+  and completed_at is null;
 
 create or replace function public.delete_expired_completed_rooms()
 returns integer
@@ -17,7 +23,7 @@ begin
   delete from public.rooms
   where status = 'completed'
     and completed_at is not null
-    and completed_at <= now() - interval '30 minutes';
+    and completed_at <= now() - interval '3 days';
 
   get diagnostics deleted_count = row_count;
   return deleted_count;
