@@ -78,14 +78,21 @@ function InstallAppButton() {
   const install = async () => {
     if (installed) return
 
-    if (!installPrompt) {
-      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
-      setMessage(isIOS
-        ? 'للتثبيت على iPhone: افتح الموقع في Safari، اضغط «مشاركة»، ثم «إضافة إلى الشاشة الرئيسية».'
-        : 'من قائمة Chrome ⋮ على جوالك اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
-      )
-      return
-    }
+      if (!installPrompt) {
+        const userAgent = window.navigator.userAgent
+        const isAndroid = /android/i.test(userAgent)
+        const isEmbeddedBrowser = /;\s*wv\)|\bwv\b|FBAN|FBAV|Instagram|Line\//i.test(userAgent)
+
+        if (isAndroid && isEmbeddedBrowser) {
+          const targetUrl = 'https://khetma-web.pages.dev/'
+          const fallbackUrl = encodeURIComponent(targetUrl)
+          window.location.href = `intent://khetma-web.pages.dev/#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${fallbackUrl};end`
+          return
+        }
+
+        setMessage('التثبيت غير متاح في هذا المتصفح. افتح الموقع في Chrome ليظهر خيار التثبيت مباشرةً.')
+        return
+      }
 
     await installPrompt.prompt()
     const { outcome } = await installPrompt.userChoice
