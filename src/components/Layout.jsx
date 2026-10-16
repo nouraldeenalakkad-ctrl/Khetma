@@ -24,7 +24,7 @@ export default function Layout({ children, pageTitle, pageSubtitle }) {
         <div className="brand-box">
           <div className="brand-badge">خ</div>
           <div>
-            <div className="brand-name">خَتْمَة</div>
+            <div className="brand-name">خِتْمَة</div>
             <div className="brand-tagline">اجعل لك في القرآن نصيبًا</div>
           </div>
         </div>

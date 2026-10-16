@@ -23,7 +23,7 @@ function HomePage() {
         <div className="brand-mark" aria-label="logo">
           <img
             src="/logo-khetma-emerald.png"
-            alt="شعار خَتْمَة: مصحف على حامل ضمن محراب أخضر وذهبي"
+            alt="شعار خِتْمَة: مصحف على حامل ضمن محراب أخضر وذهبي"
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               if (e.currentTarget.nextElementSibling)
@@ -33,7 +33,7 @@ function HomePage() {
           <BookOpen className="logo-fallback" size={34} strokeWidth={1.8} aria-hidden="true" />
         </div>
         <p className="eyebrow">اجعل لك نصيبًا من القرآن</p>
-        <h1>خَتْمَة</h1>
+        <h1>خِتْمَة</h1>
         <p className="verse">
           وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ فَهَلْ مِن مُّدَّكِرٍ
         </p>
@@ -64,7 +64,7 @@ function InstallAppButton() {
     const markInstalled = () => {
       setInstalled(true)
       setInstallPrompt(null)
-      setMessage('تم تثبيت خَتْمَة على جهازك.')
+      setMessage('تم تثبيت خِتْمَة على جهازك.')
     }
 
     window.addEventListener('beforeinstallprompt', captureInstallPrompt)
@@ -98,8 +98,8 @@ function InstallAppButton() {
     const { outcome } = await installPrompt.userChoice
     setInstallPrompt(null)
     setMessage(outcome === 'accepted'
-      ? 'بدأ تثبيت خَتْمَة على جهازك.'
-      : 'يمكنك تثبيت خَتْمَة لاحقًا من قائمة Chrome ⋮.',
+      ? 'بدأ تثبيت خِتْمَة على جهازك.'
+      : 'يمكنك تثبيت خِتْمَة لاحقًا من قائمة Chrome ⋮.',
     )
   }
 
@@ -109,7 +109,7 @@ function InstallAppButton() {
         type="button"
         className="install-app-button"
         onClick={install}
-        aria-label={installed ? 'تم تثبيت خَتْمَة' : 'Install | تنزيل خَتْمَة على الجوال'}
+        aria-label={installed ? 'تم تثبيت خِتْمَة' : 'Install | تنزيل خِتْمَة على الجوال'}
         disabled={installed}
       >
         <Download size={18} aria-hidden="true" />
@@ -482,7 +482,7 @@ function RoomPage({ roomId, session }) {
     <div className="page-shell room-shell">
       <header className="room-header">
         <div>
-          <Link to="/" className="brand-small">خَتْمَة</Link>
+          <Link to="/" className="brand-small">خِتْمَة</Link>
           <h1>{room.name}</h1>
         </div>
         <div className="room-actions">
@@ -914,7 +914,7 @@ function PartPage({ session }) {
           العودة
         </button>
         <div className="reader-title">
-          <span>خَتْمَة</span>
+          <span>خِتْمَة</span>
           <h1>الجزء {part.number}</h1>
         </div>
       </header>
