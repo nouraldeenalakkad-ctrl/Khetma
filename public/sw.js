@@ -1,7 +1,9 @@
-const CACHE_NAME = 'khetma-shell-v4'
+const CACHE_NAME = 'khetma-shell-v5'
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
+  '/logo-khetma-192.png',
+  '/logo-khetma-512.png',
   '/logo-khetma-emerald.png',
 ]
 

@@ -45,6 +45,11 @@
 .verse { max-width: 660px; margin: 12px auto 30px; color: #e9dec6; font-family: 'Noto Naskh Arabic', Georgia, serif; font-size: clamp(1.2rem, 2.5vw, 1.75rem); line-height: 2.1; }
 .home-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; width: min(100%, 610px); }
 .footer-text { margin-top: 30px; color: rgba(238, 226, 198, .65); font-size: .78rem; }
+.install-app-wrap { display: grid; justify-items: center; gap: 10px; width: min(100%, 340px); margin-top: 8px; }
+.install-app-button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 11px 20px; border: 1px solid rgba(245, 224, 177, .72); border-radius: 14px; background: linear-gradient(135deg, #f0d9a6, #c49a55); color: #183a32; box-shadow: 0 8px 20px rgba(3, 24, 19, .2); font: inherit; font-size: .96rem; font-weight: 800; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
+.install-app-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(3, 24, 19, .28); }
+.install-app-button:disabled { cursor: default; }
+.install-app-message { max-width: 100%; margin: 0; padding: 10px 14px; border: 1px solid rgba(232, 215, 177, .2); border-radius: 12px; background: rgba(255, 255, 255, .07); color: #f5ebd5; font-size: .84rem; line-height: 1.8; }
 
 /* Shared controls and forms */
 .primary-button, .secondary-button, .danger-button, .success-button, .back-button, .part-go-button {

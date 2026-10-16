@@ -3,7 +3,7 @@ import {
   BrowserRouter, Link, Navigate, Route, Routes,
   useNavigate, useParams,
 } from 'react-router-dom'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Download } from 'lucide-react'
 import {
   claimPart, completePart, createRoom, deleteRoom,
   getRoomState, getSession, joinRoom, leaveRoom,
@@ -42,7 +42,73 @@ function HomePage() {
           <Link to="/join" className="secondary-button">الانضمام للختمة الحالية</Link>
         </div>
         <p className="footer-text">تصميم نور الدين</p>
+        <InstallAppButton />
       </main>
+    </div>
+  )
+}
+
+function InstallAppButton() {
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [installed, setInstalled] = useState(() =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true,
+  )
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const captureInstallPrompt = (event) => {
+      event.preventDefault()
+      setInstallPrompt(event)
+    }
+    const markInstalled = () => {
+      setInstalled(true)
+      setInstallPrompt(null)
+      setMessage('تم تثبيت خَتْمَة على جهازك.')
+    }
+
+    window.addEventListener('beforeinstallprompt', captureInstallPrompt)
+    window.addEventListener('appinstalled', markInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', captureInstallPrompt)
+      window.removeEventListener('appinstalled', markInstalled)
+    }
+  }, [])
+
+  const install = async () => {
+    if (installed) return
+
+    if (!installPrompt) {
+      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+      setMessage(isIOS
+        ? 'للتثبيت على iPhone: افتح الموقع في Safari، اضغط «مشاركة»، ثم «إضافة إلى الشاشة الرئيسية».'
+        : 'من قائمة Chrome ⋮ على جوالك اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
+      )
+      return
+    }
+
+    await installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    setInstallPrompt(null)
+    setMessage(outcome === 'accepted'
+      ? 'بدأ تثبيت خَتْمَة على جهازك.'
+      : 'يمكنك تثبيت خَتْمَة لاحقًا من قائمة Chrome ⋮.',
+    )
+  }
+
+  return (
+    <div className="install-app-wrap">
+      <button
+        type="button"
+        className="install-app-button"
+        onClick={install}
+        aria-label={installed ? 'تم تثبيت خَتْمَة' : 'Install | تنزيل خَتْمَة على الجوال'}
+        disabled={installed}
+      >
+        <Download size={18} aria-hidden="true" />
+        <span>{installed ? 'Installed | مثبّت' : 'Install | تنزيل'}</span>
+      </button>
+      {message && <p className="install-app-message" role="status">{message}</p>}
     </div>
   )
 }
